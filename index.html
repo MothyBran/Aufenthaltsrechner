@@ -386,6 +386,31 @@
             font-weight: 600;
         }
 
+        .print-section {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .print-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .print-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+
         .footer {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             border-top: 1px solid #dee2e6;
@@ -466,31 +491,6 @@
 
         .benefits p:last-child {
             margin-bottom: 0;
-        }
-
-        .print-section {
-            text-align: center;
-            margin-top: 25px;
-            padding-top: 20px;
-            border-top: 1px solid #e9ecef;
-        }
-
-        .print-btn {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 1rem;
-            font-weight: 600;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-        }
-
-        .print-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
         }
 
         @media (max-width: 768px) {
@@ -720,7 +720,8 @@
     <script>
         let currentLanguage = 'de';
         let currentMode = 'schengen';
-        let visibleStays = 1; // Anzahl der sichtbaren Aufenthalte
+        let visibleStays = 1;
+        let calculationPeriodData = null;
 
         const translations = {
             de: {
@@ -823,27 +824,7 @@
                 tooManyEntries: 'Too many entries',
                 daysOverLimit: 'Days exceeded'
             }
-        };;
-
-        function setLanguage(lang) {
-            currentLanguage = lang;
-            
-            // Update language buttons
-            document.querySelectorAll('.language-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            // Update all translatable elements
-            for (const [key, value] of Object.entries(translations[lang])) {
-                const element = document.getElementById(key);
-                if (element) {
-                    element.innerHTML = value;
-                }
-            }
-            
-            // Regenerate stay entries with new language
-            generateStayEntries();
-            updatePeriodDisplay();
-        }
+        };
 
         function updatePeriodDisplay() {
             const periodStart = document.getElementById('periodStart');
@@ -851,7 +832,6 @@
             const periodNote = document.getElementById('periodNote');
             
             if (currentMode === 'schengen') {
-                // Für Schengen: 180 Tage rückwirkend von heute
                 const today = new Date();
                 const period180Start = new Date(today);
                 period180Start.setDate(period180Start.getDate() - 180);
@@ -860,7 +840,6 @@
                 periodEnd.textContent = today.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') + ` (${translations[currentLanguage].today})`;
                 periodNote.textContent = translations[currentLanguage].calculationPeriodSchengen;
             } else {
-                // Für Visum: Eingegebene Daten oder Platzhalter
                 const visaStart = document.getElementById('visaStart')?.value;
                 const visaEnd = document.getElementById('visaEnd')?.value;
                 
@@ -878,12 +857,30 @@
                 }
             }
         }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            
+            document.querySelectorAll('.language-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            for (const [key, value] of Object.entries(translations[lang])) {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.innerHTML = value;
+                }
+            }
+            
+            generateStayEntries();
+            updatePeriodDisplay();
+        }
+
+        function toggleMode() {
             const modeSwitch = document.getElementById('modeSwitch');
             const schengenMode = document.getElementById('schengenMode');
             const visaMode = document.getElementById('visaMode');
             const results = document.getElementById('results');
             
-            // Reset sichtbare Aufenthalte beim Modus-Wechsel
             visibleStays = 1;
             
             if (modeSwitch.checked) {
@@ -898,6 +895,7 @@
             
             results.classList.add('hidden');
             generateStayEntries();
+            updatePeriodDisplay();
         }
 
         function generateStayEntries() {
@@ -905,7 +903,6 @@
             const container = document.getElementById(containerId);
             container.innerHTML = '';
             
-            // Aufenthaltseinträge generieren (nur sichtbare)
             for (let i = 1; i <= visibleStays; i++) {
                 const entryHTML = `
                     <div class="stay-entry">
@@ -926,7 +923,6 @@
                 container.innerHTML += entryHTML;
             }
             
-            // Button zum Hinzufügen weiterer Aufenthalte (nur wenn weniger als 5 sichtbar)
             if (visibleStays < 5) {
                 const addButtonHTML = `
                     <div class="add-stay-section">
@@ -971,7 +967,7 @@
         function calculateSchengen() {
             const stays = [];
             
-            for (let i = 1; i <= 5; i++) {
+            for (let i = 1; i <= visibleStays; i++) {
                 const startDate = document.getElementById(`schengenStart${i}`).value;
                 const endDate = document.getElementById(`schengenEnd${i}`).value;
                 
@@ -1025,7 +1021,6 @@
             const remainingDays = 90 - daysInPeriod;
             const isLegal = daysInPeriod <= 90;
             
-            // Bezugszeitraum für Print-Export
             const calculationPeriod = {
                 start: period180Start,
                 end: referenceDate,
@@ -1076,7 +1071,7 @@
             
             const stays = [];
             
-            for (let i = 1; i <= 5; i++) {
+            for (let i = 1; i <= visibleStays; i++) {
                 const startDate = document.getElementById(`visaStart${i}`).value;
                 const endDate = document.getElementById(`visaEnd${i}`).value;
                 
@@ -1102,7 +1097,6 @@
             let violations = [];
             
             stays.forEach((stay, index) => {
-                // Check if stay is within visa period
                 if (stay.start < visaStartDate || stay.end > visaEndDate) {
                     violations.push(`${translations[currentLanguage].stayLabel} ${index + 1}: ${translations[currentLanguage].errorStayOutsideVisa}`);
                     return;
@@ -1114,7 +1108,6 @@
                 totalDays += days;
             });
             
-            // Check violations
             let isCompliant = true;
             
             if (allowedEntries !== 'multi' && entriesUsed > parseInt(allowedEntries)) {
@@ -1131,7 +1124,6 @@
         }
 
         function displaySchengenResults(usedDays, remainingDays, isLegal, nextEntryDate, referenceDate, calculationPeriod) {
-            // Globale Variable für Print-Export setzen
             calculationPeriodData = calculationPeriod;
             
             const resultsDiv = document.getElementById('results');
@@ -1181,7 +1173,6 @@
         }
 
         function displayVisaResults(usedDays, allowedDays, entriesUsed, allowedEntries, isCompliant, violations, visaStart, visaEnd) {
-            // Globale Variable für Print-Export setzen (Visum-Modus)
             calculationPeriodData = {
                 start: visaStart,
                 end: visaEnd,
@@ -1232,11 +1223,8 @@
             resultsDiv.scrollIntoView({ behavior: 'smooth' });
         }
 
-        let calculationPeriodData = null; // Globale Variable für Bezugszeitraum
-
         function printResults() {
             try {
-                // Ergebnis-Daten sammeln
                 const resultsDiv = document.getElementById('results');
                 const resultsList = document.getElementById('resultsList');
                 
@@ -1244,10 +1232,8 @@
                     throw new Error('No results to print');
                 }
                 
-                // Aufenthalts-Daten sammeln
                 const enteredStays = collectEnteredStays();
                 
-                // Aktuelles Datum und Titel
                 const now = new Date();
                 const printDate = now.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') + 
                                  ' ' + now.toLocaleTimeString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
@@ -1256,21 +1242,17 @@
                     ? (currentLanguage === 'de' ? 'SCHENGEN AUFENTHALTSBERECHNUNG (90/180 Tage)' : 'SCHENGEN STAY CALCULATION (90/180 days)')
                     : (currentLanguage === 'de' ? 'VISUM AUFENTHALTSBERECHNUNG' : 'VISA STAY CALCULATION');
                 
-                // HTML für Print-Version erstellen
                 const printHTML = createPrintHTML(printTitle, printDate, resultsList.innerHTML, enteredStays, calculationPeriodData);
                 
-                // Neues Fenster öffnen für Print
                 const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
                 
                 if (printWindow) {
                     printWindow.document.write(printHTML);
                     printWindow.document.close();
                     
-                    // Print-Dialog im neuen Fenster
                     printWindow.onload = function() {
                         setTimeout(() => {
                             printWindow.print();
-                            // Fenster nach dem Drucken schließen
                             printWindow.onafterprint = function() {
                                 printWindow.close();
                             };
@@ -1328,7 +1310,6 @@
             const departureLabel = translations[currentLanguage].departureLabel;
             const daysTextPlural = translations[currentLanguage].daysTextPlural;
             
-            // Bezugszeitraum-HTML
             let calculationPeriodHTML = '';
             if (calculationPeriod) {
                 const periodStart = calculationPeriod.start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
@@ -1354,7 +1335,6 @@
                 `;
             }
             
-            // Aufenthalte-Tabelle generieren
             let staysTableHTML = '';
             if (enteredStays.length > 0) {
                 staysTableHTML = `
@@ -1555,11 +1535,9 @@
         }
 
         function showTextExport() {
-            // Text-basierte Alternative wenn alles andere fehlschlägt
             const resultsDiv = document.getElementById('results');
             const resultItems = resultsDiv.querySelectorAll('.result-item');
             
-            // Aufenthalts-Daten sammeln
             const enteredStays = collectEnteredStays();
             
             let textContent = currentMode === 'schengen' 
@@ -1569,7 +1547,6 @@
             textContent += '\n' + '='.repeat(60) + '\n\n';
             textContent += 'Erstellt am: ' + new Date().toLocaleString() + '\n\n';
             
-            // Bezugszeitraum hinzufügen
             if (calculationPeriodData) {
                 const periodStart = calculationPeriodData.start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
                 const periodEnd = calculationPeriodData.end.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
@@ -1588,7 +1565,6 @@
                 textContent += `${periodNote}\n\n`;
             }
             
-            // Eingegebene Aufenthalte hinzufügen
             if (enteredStays.length > 0) {
                 textContent += translations[currentLanguage].stayOverviewTitle + ':\n';
                 textContent += '-'.repeat(40) + '\n';
@@ -1617,7 +1593,6 @@
                 ? 'Hinweis: Diese Berechnung dient zur Orientierung.\nBei rechtlichen Fragen wenden Sie sich an die zuständigen Behörden.'
                 : 'Note: This calculation is for guidance only.\nFor legal questions, contact the relevant authorities.';
             
-            // Text in neues Fenster oder Download anbieten
             const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1633,7 +1608,6 @@
                 : 'The calculation has been downloaded as a text file.');
         }
 
-        // Initialisierung
         document.addEventListener('DOMContentLoaded', function() {
             generateStayEntries();
             updatePeriodDisplay();
