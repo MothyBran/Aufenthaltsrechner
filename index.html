@@ -1509,7 +1509,7 @@
         }
 
         function calculateDays(mode, entryNumber) {
-            // Diese Funktion wird nicht mehr benötigt, da wir automatisch berechnen
+            // Diese Funktion ist nicht mehr nötig, da calculateStayPeriods() verwendet wird
             // Aber wir behalten sie für Kompatibilität
             calculateStayPeriods();
         }
@@ -2035,6 +2035,10 @@
         }
 
         function showTextExport() {
+            const resultsDiv = document.getElementById('results');
+            const resultItems = resultsDiv.querySelectorAll('.result-item');
+            
+            // Aufenthalts-Daten sammeln
             const enteredStays = collectEnteredStays();
             
             let textContent = currentMode === 'schengen' 
@@ -2073,9 +2077,6 @@
                 textContent += '\n';
             }
             
-            const resultsDiv = document.getElementById('results');
-            const resultItems = resultsDiv.querySelectorAll('.result-item');
-            
             textContent += 'BERECHNUNGSERGEBNIS:\n';
             textContent += '-'.repeat(40) + '\n';
             
@@ -2093,7 +2094,7 @@
             textContent += '\n' + '='.repeat(60) + '\n';
             textContent += translations[currentLanguage].disclaimer;
             
-            // Text in neues Fenster oder Download anbieten
+            // Text als Download anbieten
             const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
