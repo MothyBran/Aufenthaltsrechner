@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schengen & Visa Aufenthaltsrechner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .language-btn {
+            padding: 8px 16px;
+            border: 2px solid #4facfe;
+            background: white;
+            color: #4facfe;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .language-btn.active {
+            background: #4facfe;
+            color: white;
+        }
+
+        .mode-switch {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 30px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #4facfe;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+
+        .mode-labels {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .mode-section {
+            display: none;
+        }
+
+        .mode-section.active {
+            display: block;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+
+        .info-box h3 {
+            color: #1976d2;
+            margin-bottom: 8px;
+        }
+
+        .info-box p {
+            color: #424242;
+            line-height: 1.5;
+        }
+
+        .visa-config {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .visa-config h3 {
+            color: #e65100;
+            margin-bottom: 15px;
+        }
+
+        .visa-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .stay-entry {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .stay-entry:hover {
+            border-color: #4facfe;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.1);
+        }
+
+        .stay-entry h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .date-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .input-group input, .input-group select {
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .days-display {
+            text-align: right;
+            color: #6c757d;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .calculate-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: block;
+            margin: 30px auto;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .calculate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+        }
+
+        .results.hidden {
+            display: none;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .result-value {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .status-legal {
+            color: #28a745;
+        }
+
+        .status-illegal {
+            color: #dc3545;
+        }
+
+        .status-warning {
+            color: #ffc107;
+        }
+
+        .next-entry-date {
+            background: #fff3cd;
+            border: 2px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .footer {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-top: 1px solid #dee2e6;
+            margin-top: 40px;
+        }
+
+        .footer-content {
+            padding: 40px 30px;
+            max-width: 800px;
+            margin: 0 auto;
+            color: #495057;
+            line-height: 1.6;
+        }
+
+        .footer-content h2 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .footer-content h3 {
+            color: #34495e;
+            font-size: 1.2rem;
+            margin: 25px 0 15px 0;
+            font-weight: 600;
+        }
+
+        .intro-text {
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .features-text {
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .feature-list {
+            margin-bottom: 30px;
+            padding-left: 20px;
+        }
+
+        .feature-list li {
+            margin-bottom: 8px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+
+        .section ul li {
+            margin-bottom: 8px;
+        }
+
+        .benefits {
+            background: #e8f5e8;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+
+        .benefits p {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #155724;
+        }
+
+        .benefits p:last-child {
+            margin-bottom: 0;
+        }
+
+        .print-section {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .print-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .print-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .mode-switch {
+                justify-content: center;
+            }
+
+            .date-inputs, .visa-inputs {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .result-item {
+                flex-direction: column;
+                gap: 5px;
+                text-align: center;
+            }
+
+            .footer-content {
+                padding: 30px 20px;
+            }
+
+            .footer-content h2 {
+                font-size: 1.3rem;
+            }
+
+            .footer-content h3 {
+                font-size: 1.1rem;
+            }
+
+            .intro-text {
+                font-size: 1rem;
+            }
+
+            .print-btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="headerTitle">🇪🇺 Schengen & Visa Aufenthaltsrechner</h1>
+            <p id="headerSubtitle">Berechnen Sie Ihre verbleibenden Aufenthaltstage</p>
+        </div>
+        
+        <div class="controls">
+            <div class="language-selector">
+                <span id="languageLabel">Sprache:</span>
+                <button class="language-btn active" onclick="setLanguage('de')">🇩🇪 DE</button>
+                <button class="language-btn" onclick="setLanguage('en')">🇬🇧 EN</button>
+            </div>
+            
+            <div class="mode-switch">
+                <div class="mode-labels">
+                    <span id="mode1Label">Schengen 90/180</span>
+                    <label class="switch">
+                        <input type="checkbox" id="modeSwitch" onchange="toggleMode()">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="mode2Label">Visum-Prüfung</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- Schengen Mode -->
+            <div id="schengenMode" class="mode-section active">
+                <div class="info-box">
+                    <h3 id="schengenRuleTitle">Schengen-Regel (90/180 Tage)</h3>
+                    <p id="schengenRuleText">Als Tourist dürfen Sie sich maximal <strong>90 Tage</strong> innerhalb von <strong>180 aufeinanderfolgenden Tagen</strong> im Schengen-Raum aufhalten. Geben Sie Ihre bisherigen und geplanten Aufenthalte ein, um Ihre verbleibenden Tage zu berechnen.</p>
+                </div>
+
+                <div id="schengenStayEntries"></div>
+                
+                <button type="button" class="calculate-btn" onclick="calculateSchengen()" id="schengenCalculateBtn">
+                    📊 Aufenthaltstage berechnen
+                </button>
+            </div>
+
+            <!-- Visa Mode -->
+            <div id="visaMode" class="mode-section">
+                <div class="info-box">
+                    <h3 id="visaRuleTitle">Visum-Zeitraum Prüfung</h3>
+                    <p id="visaRuleText">Geben Sie Ihre Visum-Details ein und prüfen Sie, ob Ihre geplanten Aufenthalte innerhalb der Visum-Beschränkungen liegen.</p>
+                </div>
+
+                <div class="visa-config">
+                    <h3 id="visaConfigTitle">🛂 Visum-Konfiguration</h3>
+                    <div class="visa-inputs">
+                        <div class="input-group">
+                            <label for="visaStart" id="visaStartLabel">Visum gültig ab</label>
+                            <input type="date" id="visaStart">
+                        </div>
+                        <div class="input-group">
+                            <label for="visaEnd" id="visaEndLabel">Visum gültig bis</label>
+                            <input type="date" id="visaEnd">
+                        </div>
+                        <div class="input-group">
+                            <label for="allowedDays" id="allowedDaysLabel">Erlaubte Aufenthaltstage</label>
+                            <input type="number" id="allowedDays" min="1" max="365" placeholder="z.B. 90">
+                        </div>
+                        <div class="input-group">
+                            <label for="allowedEntries" id="allowedEntriesLabel">Erlaubte Einreisen</label>
+                            <select id="allowedEntries">
+                                <option value="1">1 (Einmalig)</option>
+                                <option value="2">2 (Zweimalig)</option>
+                                <option value="multi">MULTI (Mehrfach)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="visaStayEntries"></div>
+                
+                <button type="button" class="calculate-btn" onclick="calculateVisa()" id="visaCalculateBtn">
+                    🔍 Visum-Compliance prüfen
+                </button>
+            </div>
+
+            <div id="results" class="results hidden">
+                <h3 id="resultsTitle" style="margin-bottom: 20px; color: #495057;">🔍 Berechnungsergebnis</h3>
+                <div id="resultsList"></div>
+                <div class="print-section">
+                    <button type="button" class="print-btn" onclick="printResults()" id="printBtn">
+                        📄 <span id="printBtnText">Drucken/Exportieren</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-content">
+                <h2>🛂 Aufenthaltsrechner für Schengen | 90 Tage in 180 Tagen + Visumsprüfung</h2>
+                
+                <p class="intro-text">
+                    Mit unserem kostenlosen Aufenthaltsrechner kannst du ganz einfach prüfen, wie viele Aufenthaltstage im Schengen-Raum du bereits verbraucht hast, wie viele Tage dir noch bleiben – und ob du aktuell legal eingereist bist.
+                </p>
+                
+                <p class="features-text">
+                    Die Berechnung berücksichtigt sowohl:
+                </p>
+                
+                <ul class="feature-list">
+                    <li><strong>die klassische 90/180-Tage-Regel</strong> (für visumfreies Reisen)</li>
+                    <li><strong>als auch Aufenthaltszeiten innerhalb eines Schengen-Visums</strong> (z. B. Typ-C-Visum mit begrenztem Gültigkeitszeitraum)</li>
+                </ul>
+                
+                <div class="section">
+                    <h3>🔍 Was macht unser Aufenthaltsrechner?</h3>
+                    <ul>
+                        <li>Berechnet automatisch, wie viele Tage du im aktuellen 180-Tage-Zeitraum verbracht hast</li>
+                        <li>Zeigt, wie viele Aufenthaltstage noch übrig sind</li>
+                        <li>Prüft bei Bedarf auch, ob du dein Schengen-Visum korrekt nutzt</li>
+                        <li>Gibt an, ab wann eine erneute legale Einreise möglich ist</li>
+                    </ul>
+                    <p>Du gibst einfach deine einzelnen Aufenthaltszeiträume oder deinen Visumszeitraum ein – alles andere übernimmt das Tool.</p>
+                </div>
+                
+                <div class="section">
+                    <h3>👤 Für wen ist der Rechner nützlich?</h3>
+                    <ul>
+                        <li>Touristen mit visumfreier Einreise (z. B. aus UK, USA, Kanada, Australien)</li>
+                        <li>Visa-Inhaber, die ihre 90 Tage im Visumszeitraum einhalten müssen</li>
+                        <li>Digitale Nomaden, Geschäftsreisende, Au-Pairs</li>
+                        <li>Alle, die rechtssicher im Schengen-Raum reisen möchten</li>
+                    </ul>
+                </div>
+                
+                <div class="benefits">
+                    <p>✔ Die Berechnung erfolgt direkt im Browser – keine Datenspeicherung, keine Anmeldung nötig.</p>
+                    <p>✔ Ideal zur Planung, Dokumentation oder zum Nachweis gegenüber Behörden.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentLanguage = 'de';
+        let currentMode = 'schengen';
+
+        const translations = {
+            de: {
+                headerTitle: '🇪🇺 Schengen & Visa Aufenthaltsrechner',
+                headerSubtitle: 'Berechnen Sie Ihre verbleibenden Aufenthaltstage',
+                languageLabel: 'Sprache:',
+                mode1Label: 'Schengen 90/180',
+                mode2Label: 'Visum-Prüfung',
+                schengenRuleTitle: 'Schengen-Regel (90/180 Tage)',
+                schengenRuleText: 'Als Tourist dürfen Sie sich maximal <strong>90 Tage</strong> innerhalb von <strong>180 aufeinanderfolgenden Tagen</strong> im Schengen-Raum aufhalten. Geben Sie Ihre bisherigen und geplanten Aufenthalte ein, um Ihre verbleibenden Tage zu berechnen.',
+                visaRuleTitle: 'Visum-Zeitraum Prüfung',
+                visaRuleText: 'Geben Sie Ihre Visum-Details ein und prüfen Sie, ob Ihre geplanten Aufenthalte innerhalb der Visum-Beschränkungen liegen.',
+                visaConfigTitle: '🛂 Visum-Konfiguration',
+                visaStartLabel: 'Visum gültig ab',
+                visaEndLabel: 'Visum gültig bis',
+                allowedDaysLabel: 'Erlaubte Aufenthaltstage',
+                allowedEntriesLabel: 'Erlaubte Einreisen',
+                schengenCalculateBtn: '📊 Aufenthaltstage berechnen',
+                visaCalculateBtn: '🔍 Visum-Compliance prüfen',
+                printBtnText: 'Drucken/Exportieren',
+                resultsTitle: '🔍 Berechnungsergebnis',
+                stayLabel: 'Aufenthalt',
+                arrivalLabel: 'Ankunftsdatum',
+                departureLabel: 'Abreisedatum',
+                daysText: 'Tag',
+                daysTextPlural: 'Tage',
+                usedDaysLabel: '📊 Genutzte Aufenthaltstage (180-Tage-Zeitraum)',
+                usedDaysVisaLabel: '📊 Genutzte Aufenthaltstage (Visum-Zeitraum)',
+                remainingDaysLabel: '⏰ Verbleibende Aufenthaltstage',
+                statusLabel: '⚖️ Aktueller Status',
+                calculationDateLabel: '📅 Berechnungsstichtag',
+                entriesUsedLabel: '🚪 Verwendete Einreisen',
+                statusLegal: '✅ Legal',
+                statusExhausted: '⚠️ Ausgeschöpft (0 Tage übrig)',
+                statusViolation: '❌ Überschreitung',
+                statusVisaValid: '✅ Visum-konform',
+                statusVisaViolation: '❌ Visum-Verletzung',
+                nextEntryText: '🚪 Nächstmögliche legale Einreise:',
+                errorEndDate: '⚠️ Enddatum muss nach Startdatum liegen',
+                errorNoStays: 'Bitte geben Sie mindestens einen Aufenthaltszeitraum ein.',
+                errorVisaConfig: 'Bitte füllen Sie alle Visum-Felder aus.',
+                errorVisaDates: 'Visum-Enddatum muss nach Startdatum liegen.',
+                errorStayOutsideVisa: '⚠️ Aufenthalt außerhalb des Visum-Zeitraums',
+                tooManyEntries: 'Zu viele Einreisen',
+                daysOverLimit: 'Tage überschritten'
+            },
+            en: {
+                headerTitle: '🇪🇺 Schengen & Visa Stay Calculator',
+                headerSubtitle: 'Calculate your remaining stay days',
+                languageLabel: 'Language:',
+                mode1Label: 'Schengen 90/180',
+                mode2Label: 'Visa Check',
+                schengenRuleTitle: 'Schengen Rule (90/180 days)',
+                schengenRuleText: 'As a tourist, you may stay a maximum of <strong>90 days</strong> within <strong>180 consecutive days</strong> in the Schengen area. Enter your previous and planned stays to calculate your remaining days.',
+                visaRuleTitle: 'Visa Period Check',
+                visaRuleText: 'Enter your visa details and check if your planned stays are within the visa restrictions.',
+                visaConfigTitle: '🛂 Visa Configuration',
+                visaStartLabel: 'Visa valid from',
+                visaEndLabel: 'Visa valid until',
+                allowedDaysLabel: 'Allowed stay days',
+                allowedEntriesLabel: 'Allowed entries',
+                schengenCalculateBtn: '📊 Calculate stay days',
+                visaCalculateBtn: '🔍 Check visa compliance',
+                printBtnText: 'Print/Export',
+                resultsTitle: '🔍 Calculation Result',
+                stayLabel: 'Stay',
+                arrivalLabel: 'Arrival date',
+                departureLabel: 'Departure date',
+                daysText: 'day',
+                daysTextPlural: 'days',
+                usedDaysLabel: '📊 Used stay days (180-day period)',
+                usedDaysVisaLabel: '📊 Used stay days (visa period)',
+                remainingDaysLabel: '⏰ Remaining stay days',
+                statusLabel: '⚖️ Current status',
+                calculationDateLabel: '📅 Calculation date',
+                entriesUsedLabel: '🚪 Entries used',
+                statusLegal: '✅ Legal',
+                statusExhausted: '⚠️ Exhausted (0 days left)',
+                statusViolation: '❌ Violation',
+                statusVisaValid: '✅ Visa compliant',
+                statusVisaViolation: '❌ Visa violation',
+                nextEntryText: '🚪 Next possible legal entry:',
+                errorEndDate: '⚠️ End date must be after start date',
+                errorNoStays: 'Please enter at least one stay period.',
+                errorVisaConfig: 'Please fill in all visa fields.',
+                errorVisaDates: 'Visa end date must be after start date.',
+                errorStayOutsideVisa: '⚠️ Stay outside visa period',
+                tooManyEntries: 'Too many entries',
+                daysOverLimit: 'Days exceeded'
+            }
+        };
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            
+            // Update language buttons
+            document.querySelectorAll('.language-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update all translatable elements
+            for (const [key, value] of Object.entries(translations[lang])) {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.innerHTML = value;
+                }
+            }
+            
+            // Regenerate stay entries with new language
+            generateStayEntries();
+        }
+
+        function toggleMode() {
+            const modeSwitch = document.getElementById('modeSwitch');
+            const schengenMode = document.getElementById('schengenMode');
+            const visaMode = document.getElementById('visaMode');
+            const results = document.getElementById('results');
+            
+            if (modeSwitch.checked) {
+                currentMode = 'visa';
+                schengenMode.classList.remove('active');
+                visaMode.classList.add('active');
+            } else {
+                currentMode = 'schengen';
+                schengenMode.classList.add('active');
+                visaMode.classList.remove('active');
+            }
+            
+            results.classList.add('hidden');
+            generateStayEntries();
+        }
+
+        function generateStayEntries() {
+            const containerId = currentMode === 'schengen' ? 'schengenStayEntries' : 'visaStayEntries';
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            for (let i = 1; i <= 5; i++) {
+                const entryHTML = `
+                    <div class="stay-entry">
+                        <h3>🏛️ ${translations[currentLanguage].stayLabel} ${i}</h3>
+                        <div class="date-inputs">
+                            <div class="input-group">
+                                <label for="${currentMode}Start${i}">${translations[currentLanguage].arrivalLabel}</label>
+                                <input type="date" id="${currentMode}Start${i}" name="${currentMode}Start${i}" onchange="calculateDays('${currentMode}', ${i})">
+                            </div>
+                            <div class="input-group">
+                                <label for="${currentMode}End${i}">${translations[currentLanguage].departureLabel}</label>
+                                <input type="date" id="${currentMode}End${i}" name="${currentMode}End${i}" onchange="calculateDays('${currentMode}', ${i})">
+                            </div>
+                        </div>
+                        <div class="days-display" id="${currentMode}Days${i}"></div>
+                    </div>
+                `;
+                container.innerHTML += entryHTML;
+            }
+        }
+
+        function calculateDays(mode, entryNumber) {
+            const startDate = document.getElementById(`${mode}Start${entryNumber}`).value;
+            const endDate = document.getElementById(`${mode}End${entryNumber}`).value;
+            const daysDisplay = document.getElementById(`${mode}Days${entryNumber}`);
+            
+            if (startDate && endDate) {
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                
+                if (end >= start) {
+                    const timeDiff = end.getTime() - start.getTime();
+                    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+                    const daysText = daysDiff === 1 ? translations[currentLanguage].daysText : translations[currentLanguage].daysTextPlural;
+                    daysDisplay.textContent = `📅 ${daysDiff} ${daysText}`;
+                } else {
+                    daysDisplay.textContent = translations[currentLanguage].errorEndDate;
+                }
+            } else {
+                daysDisplay.textContent = '';
+            }
+        }
+
+        function calculateSchengen() {
+            const stays = [];
+            
+            for (let i = 1; i <= 5; i++) {
+                const startDate = document.getElementById(`schengenStart${i}`).value;
+                const endDate = document.getElementById(`schengenEnd${i}`).value;
+                
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    
+                    if (end >= start) {
+                        stays.push({ start, end });
+                    }
+                }
+            }
+            
+            if (stays.length === 0) {
+                alert(translations[currentLanguage].errorNoStays);
+                return;
+            }
+            
+            stays.sort((a, b) => a.start.getTime() - b.start.getTime());
+            
+            const today = new Date();
+            const lastDate = stays.reduce((latest, stay) => {
+                return stay.end > latest ? stay.end : latest;
+            }, today);
+            
+            const referenceDate = lastDate > today ? lastDate : today;
+            const period180Start = new Date(referenceDate);
+            period180Start.setDate(period180Start.getDate() - 180);
+            
+            let daysInPeriod = 0;
+            const relevantStays = [];
+            
+            stays.forEach(stay => {
+                if (stay.end >= period180Start && stay.start <= referenceDate) {
+                    const effectiveStart = stay.start > period180Start ? stay.start : period180Start;
+                    const effectiveEnd = stay.end < referenceDate ? stay.end : referenceDate;
+                    
+                    const timeDiff = effectiveEnd.getTime() - effectiveStart.getTime();
+                    const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+                    
+                    daysInPeriod += days;
+                    relevantStays.push({
+                        ...stay,
+                        effectiveStart,
+                        effectiveEnd,
+                        days
+                    });
+                }
+            });
+            
+            const remainingDays = 90 - daysInPeriod;
+            const isLegal = daysInPeriod <= 90;
+            
+            let nextEntryDate = null;
+            if (!isLegal || remainingDays <= 0) {
+                const sortedStays = relevantStays.sort((a, b) => a.effectiveStart.getTime() - b.effectiveStart.getTime());
+                
+                let cumulativeDays = 0;
+                for (let stay of sortedStays) {
+                    cumulativeDays += stay.days;
+                    if (cumulativeDays > 90) {
+                        nextEntryDate = new Date(stay.effectiveStart);
+                        nextEntryDate.setDate(nextEntryDate.getDate() + 180);
+                        break;
+                    }
+                }
+                
+                if (!nextEntryDate && sortedStays.length > 0) {
+                    nextEntryDate = new Date(sortedStays[0].effectiveStart);
+                    nextEntryDate.setDate(nextEntryDate.getDate() + 180);
+                }
+            }
+            
+            displaySchengenResults(daysInPeriod, remainingDays, isLegal, nextEntryDate, referenceDate);
+        }
+
+        function calculateVisa() {
+            const visaStart = document.getElementById('visaStart').value;
+            const visaEnd = document.getElementById('visaEnd').value;
+            const allowedDays = parseInt(document.getElementById('allowedDays').value);
+            const allowedEntries = document.getElementById('allowedEntries').value;
+            
+            if (!visaStart || !visaEnd || !allowedDays) {
+                alert(translations[currentLanguage].errorVisaConfig);
+                return;
+            }
+            
+            const visaStartDate = new Date(visaStart);
+            const visaEndDate = new Date(visaEnd);
+            
+            if (visaEndDate <= visaStartDate) {
+                alert(translations[currentLanguage].errorVisaDates);
+                return;
+            }
+            
+            const stays = [];
+            
+            for (let i = 1; i <= 5; i++) {
+                const startDate = document.getElementById(`visaStart${i}`).value;
+                const endDate = document.getElementById(`visaEnd${i}`).value;
+                
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    
+                    if (end >= start) {
+                        stays.push({ start, end });
+                    }
+                }
+            }
+            
+            if (stays.length === 0) {
+                alert(translations[currentLanguage].errorNoStays);
+                return;
+            }
+            
+            stays.sort((a, b) => a.start.getTime() - b.start.getTime());
+            
+            let totalDays = 0;
+            let entriesUsed = 0;
+            let violations = [];
+            
+            stays.forEach((stay, index) => {
+                // Check if stay is within visa period
+                if (stay.start < visaStartDate || stay.end > visaEndDate) {
+                    violations.push(`${translations[currentLanguage].stayLabel} ${index + 1}: ${translations[currentLanguage].errorStayOutsideVisa}`);
+                    return;
+                }
+                
+                entriesUsed++;
+                const timeDiff = stay.end.getTime() - stay.start.getTime();
+                const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+                totalDays += days;
+            });
+            
+            // Check violations
+            let isCompliant = true;
+            
+            if (allowedEntries !== 'multi' && entriesUsed > parseInt(allowedEntries)) {
+                violations.push(`${translations[currentLanguage].tooManyEntries}: ${entriesUsed}/${allowedEntries}`);
+                isCompliant = false;
+            }
+            
+            if (totalDays > allowedDays) {
+                violations.push(`${translations[currentLanguage].daysOverLimit}: ${totalDays}/${allowedDays}`);
+                isCompliant = false;
+            }
+            
+            displayVisaResults(totalDays, allowedDays, entriesUsed, allowedEntries, isCompliant, violations, visaStartDate, visaEndDate);
+        }
+
+        function displaySchengenResults(usedDays, remainingDays, isLegal, nextEntryDate, referenceDate) {
+            const resultsDiv = document.getElementById('results');
+            const resultsList = document.getElementById('resultsList');
+            
+            let statusText, statusClass;
+            if (isLegal && remainingDays > 0) {
+                statusText = `${translations[currentLanguage].statusLegal} (${remainingDays} ${translations[currentLanguage].daysTextPlural} übrig)`;
+                statusClass = 'status-legal';
+            } else if (isLegal && remainingDays === 0) {
+                statusText = translations[currentLanguage].statusExhausted;
+                statusClass = 'status-warning';
+            } else {
+                statusText = translations[currentLanguage].statusViolation;
+                statusClass = 'status-illegal';
+            }
+            
+            resultsList.innerHTML = `
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].usedDaysLabel}</span>
+                    <span class="result-value">${usedDays} / 90 ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span>
+                    <span class="result-value">${Math.max(0, remainingDays)} ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].statusLabel}</span>
+                    <span class="result-value ${statusClass}">${statusText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].calculationDateLabel}</span>
+                    <span class="result-value">${referenceDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}</span>
+                </div>
+            `;
+            
+            if (nextEntryDate) {
+                resultsList.innerHTML += `
+                    <div class="next-entry-date">
+                        ${translations[currentLanguage].nextEntryText} <strong>${nextEntryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}</strong>
+                    </div>
+                `;
+            }
+            
+            resultsDiv.classList.remove('hidden');
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function displayVisaResults(usedDays, allowedDays, entriesUsed, allowedEntries, isCompliant, violations, visaStart, visaEnd) {
+            const resultsDiv = document.getElementById('results');
+            const resultsList = document.getElementById('resultsList');
+            
+            const statusText = isCompliant ? translations[currentLanguage].statusVisaValid : translations[currentLanguage].statusVisaViolation;
+            const statusClass = isCompliant ? 'status-legal' : 'status-illegal';
+            const remainingDays = Math.max(0, allowedDays - usedDays);
+            const entriesText = allowedEntries === 'multi' ? 'MULTI' : allowedEntries;
+            
+            resultsList.innerHTML = `
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].usedDaysVisaLabel}</span>
+                    <span class="result-value">${usedDays} / ${allowedDays} ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span>
+                    <span class="result-value">${remainingDays} ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].entriesUsedLabel}</span>
+                    <span class="result-value">${entriesUsed} / ${entriesText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].statusLabel}</span>
+                    <span class="result-value ${statusClass}">${statusText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">🗓️ Visum-Zeitraum</span>
+                    <span class="result-value">${visaStart.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')} - ${visaEnd.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}</span>
+                </div>
+            `;
+            
+            if (violations.length > 0) {
+                resultsList.innerHTML += `
+                    <div class="next-entry-date">
+                        <strong>⚠️ Verstöße:</strong><br>
+                        ${violations.join('<br>')}
+                    </div>
+                `;
+            }
+            
+            resultsDiv.classList.remove('hidden');
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function printResults() {
+            try {
+                // Ergebnis-Daten sammeln
+                const resultsDiv = document.getElementById('results');
+                const resultsList = document.getElementById('resultsList');
+                
+                if (!resultsDiv || !resultsList) {
+                    throw new Error('No results to print');
+                }
+                
+                // Aktuelles Datum und Titel
+                const now = new Date();
+                const printDate = now.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') + 
+                                 ' ' + now.toLocaleTimeString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
+                
+                const printTitle = currentMode === 'schengen' 
+                    ? (currentLanguage === 'de' ? 'SCHENGEN AUFENTHALTSBERECHNUNG (90/180 Tage)' : 'SCHENGEN STAY CALCULATION (90/180 days)')
+                    : (currentLanguage === 'de' ? 'VISUM AUFENTHALTSBERECHNUNG' : 'VISA STAY CALCULATION');
+                
+                // HTML für Print-Version erstellen
+                const printHTML = createPrintHTML(printTitle, printDate, resultsList.innerHTML);
+                
+                // Neues Fenster öffnen für Print
+                const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+                
+                if (printWindow) {
+                    printWindow.document.write(printHTML);
+                    printWindow.document.close();
+                    
+                    // Print-Dialog im neuen Fenster
+                    printWindow.onload = function() {
+                        setTimeout(() => {
+                            printWindow.print();
+                            // Fenster nach dem Drucken schließen
+                            printWindow.onafterprint = function() {
+                                printWindow.close();
+                            };
+                        }, 500);
+                    };
+                } else {
+                    throw new Error('Popup blocked');
+                }
+                
+            } catch (error) {
+                console.error('Print error:', error);
+                showTextExport();
+            }
+        }
+
+        function createPrintHTML(title, date, resultsHTML) {
+            const disclaimerText = currentLanguage === 'de' 
+                ? 'Hinweis: Diese Berechnung dient zur Orientierung. Bei rechtlichen Fragen wenden Sie sich an die zuständigen Behörden.'
+                : 'Note: This calculation is for guidance only. For legal questions, contact the relevant authorities.';
+                
+            const footerText = currentLanguage === 'de'
+                ? 'Erstellt mit: Schengen Aufenthaltsrechner'
+                : 'Created with: Schengen Stay Calculator';
+            
+            return `
+<!DOCTYPE html>
+<html lang="${currentLanguage}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <style>
+        @media print {
+            @page { margin: 2cm; size: A4; }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.4;
+            color: black;
+            margin: 0;
+            padding: 20px;
+            background: white;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid black;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 18pt;
+            font-weight: bold;
+            margin: 0 0 10px 0;
+        }
+        .header .date {
+            font-size: 11pt;
+            color: #666;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #ccc;
+            page-break-inside: avoid;
+        }
+        .result-label {
+            font-weight: 600;
+            color: #333;
+            flex: 1;
+        }
+        .result-value {
+            font-weight: bold;
+            text-align: right;
+            flex: 1;
+        }
+        .status-legal { color: #2d5a2d; }
+        .status-illegal { color: #8b0000; }
+        .status-warning { color: #8b6914; }
+        .next-entry-date {
+            background: #f5f5f5;
+            border: 1px solid #999;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            border-radius: 5px;
+            page-break-inside: avoid;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ccc;
+            font-size: 9pt;
+            color: #666;
+            text-align: center;
+            page-break-inside: avoid;
+        }
+        .disclaimer {
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>${title}</h1>
+        <div class="date">Erstellt am: ${date}</div>
+    </div>
+    
+    <div class="results">
+        ${resultsHTML}
+    </div>
+    
+    <div class="footer">
+        <div class="disclaimer">${disclaimerText}</div>
+        <div>${footerText} | Seite 1 von 1</div>
+    </div>
+</body>
+</html>`;
+        }
+
+        function showTextExport() {
+            // Text-basierte Alternative wenn alles andere fehlschlägt
+            const resultsDiv = document.getElementById('results');
+            const resultItems = resultsDiv.querySelectorAll('.result-item');
+            
+            let textContent = currentMode === 'schengen' 
+                ? (currentLanguage === 'de' ? 'SCHENGEN AUFENTHALTSBERECHNUNG (90/180 Tage)' : 'SCHENGEN STAY CALCULATION (90/180 days)')
+                : (currentLanguage === 'de' ? 'VISUM AUFENTHALTSBERECHNUNG' : 'VISA STAY CALCULATION');
+            
+            textContent += '\n' + '='.repeat(50) + '\n\n';
+            textContent += 'Erstellt am: ' + new Date().toLocaleString() + '\n\n';
+            
+            resultItems.forEach(item => {
+                const label = item.querySelector('.result-label')?.textContent || '';
+                const value = item.querySelector('.result-value')?.textContent || '';
+                textContent += `${label}: ${value}\n`;
+            });
+            
+            const nextEntry = resultsDiv.querySelector('.next-entry-date');
+            if (nextEntry) {
+                textContent += '\n' + nextEntry.textContent + '\n';
+            }
+            
+            textContent += '\n' + '='.repeat(50) + '\n';
+            textContent += currentLanguage === 'de' 
+                ? 'Hinweis: Diese Berechnung dient zur Orientierung.\nBei rechtlichen Fragen wenden Sie sich an die zuständigen Behörden.'
+                : 'Note: This calculation is for guidance only.\nFor legal questions, contact the relevant authorities.';
+            
+            // Text in neues Fenster oder Download anbieten
+            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'schengen-berechnung.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert(currentLanguage === 'de' 
+                ? 'Die Berechnung wurde als Textdatei heruntergeladen.' 
+                : 'The calculation has been downloaded as a text file.');
+        }
+
+        // Initialisierung
+        document.addEventListener('DOMContentLoaded', function() {
+            generateStayEntries();
+        });
+    </script>
+</body>
+</html>
