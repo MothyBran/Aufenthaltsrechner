@@ -222,69 +222,6 @@
             gap: 15px;
         }
 
-        .stay-entry {
-            background: #f8f9fa;
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .stay-entry:hover {
-            border-color: #4facfe;
-            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.1);
-        }
-
-        .stay-entry h3 {
-            color: #495057;
-            margin-bottom: 15px;
-            font-size: 1.1rem;
-        }
-
-        .stay-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .stay-header h3 {
-            margin: 0;
-            color: #495057;
-            font-size: 1.1rem;
-        }
-
-        .delete-stay-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(220, 53, 69, 0.3);
-            min-width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .delete-stay-btn:hover {
-            background: #c82333;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(220, 53, 69, 0.4);
-        }
-
-        .date-inputs {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 10px;
-        }
-
         .input-group {
             display: flex;
             flex-direction: column;
@@ -310,36 +247,179 @@
             box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
         }
 
-        .days-display {
-            text-align: right;
-            color: #6c757d;
+        .entries-section, .exits-section {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .entries-section h3, .exits-section h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .entries-grid, .exits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .entry-item, .exit-item {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .entry-item:hover, .exit-item:hover {
+            border-color: #4facfe;
+            box-shadow: 0 3px 10px rgba(79, 172, 254, 0.1);
+        }
+
+        .entry-header, .exit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .entry-header label, .exit-header label {
             font-weight: 600;
-            margin-top: 10px;
+            color: #495057;
+            font-size: 0.9rem;
         }
 
-        .add-stay-section {
-            text-align: center;
-            margin: 20px 0;
+        .delete-entry-btn, .delete-exit-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            min-width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .add-stay-btn {
+        .delete-entry-btn:hover, .delete-exit-btn:hover {
+            background: #c82333;
+            transform: scale(1.1);
+        }
+
+        .entry-item input, .exit-item input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .entry-item input:focus, .exit-item input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.1);
+        }
+
+        .add-entry-section, .add-exit-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            grid-column: 1 / -1;
+        }
+
+        .add-entry-btn, .add-exit-btn {
             background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
             color: white;
             border: 2px dashed #dee2e6;
-            padding: 15px 30px;
-            font-size: 1rem;
+            padding: 10px 20px;
+            font-size: 0.9rem;
             font-weight: 600;
-            border-radius: 12px;
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 3px 10px rgba(108, 117, 125, 0.2);
         }
 
-        .add-stay-btn:hover {
+        .add-entry-btn:hover, .add-exit-btn:hover {
             background: linear-gradient(135deg, #495057 0%, #343a40 100%);
             border-color: #4facfe;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .calculated-stays-container {
+            margin-top: 30px;
+        }
+
+        .calculated-stays {
+            background: #e8f5e8;
+            border: 2px solid #28a745;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .calculated-stays h3 {
+            color: #155724;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .stays-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .calculated-stay-item {
+            background: white;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .stay-number {
+            background: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .stay-details {
+            flex: 1;
+        }
+
+        .stay-period {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .stay-duration {
+            color: #28a745;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .calculated-stays-empty {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
         }
 
         .calculate-btn {
@@ -564,9 +644,29 @@
                 justify-content: center;
             }
 
-            .date-inputs, .visa-inputs {
+            .visa-inputs {
                 grid-template-columns: 1fr;
                 gap: 10px;
+            }
+
+            .entries-grid, .exits-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .calculated-stay-item {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+
+            .stay-details {
+                order: 1;
+            }
+
+            .stay-number {
+                order: 2;
+                align-self: center;
             }
 
             .result-item {
@@ -594,22 +694,6 @@
             .print-btn {
                 padding: 10px 20px;
                 font-size: 0.9rem;
-            }
-
-            .add-stay-btn {
-                padding: 12px 20px;
-                font-size: 0.9rem;
-            }
-
-            .delete-stay-btn {
-                min-width: 35px;
-                height: 35px;
-                padding: 6px 8px;
-                font-size: 0.9rem;
-            }
-
-            .stay-header {
-                gap: 10px;
             }
         }
     </style>
@@ -657,7 +741,7 @@
             <div id="schengenMode" class="mode-section active">
                 <div class="info-box">
                     <h3 id="schengenRuleTitle">Schengen-Regel (90/180 Tage)</h3>
-                    <p id="schengenRuleText">Als Tourist dürfen Sie sich maximal <strong>90 Tage</strong> innerhalb von <strong>180 aufeinanderfolgenden Tagen</strong> im Schengen-Raum aufhalten. Geben Sie Ihre bisherigen und geplanten Aufenthalte ein, um Ihre verbleibenden Tage zu berechnen.</p>
+                    <p id="schengenRuleText">Als Tourist dürfen Sie sich maximal <strong>90 Tage</strong> innerhalb von <strong>180 aufeinanderfolgenden Tagen</strong> im Schengen-Raum aufhalten. Geben Sie Ihre Ein- und Ausreisedaten ein, um Ihre verbleibenden Tage zu berechnen.</p>
                 </div>
 
                 <div id="schengenStayEntries"></div>
@@ -743,7 +827,7 @@
                         <li id="footerWhat3">Prüft bei Bedarf auch, ob du dein Schengen-Visum korrekt nutzt</li>
                         <li id="footerWhat4">Gibt an, ab wann eine erneute legale Einreise möglich ist</li>
                     </ul>
-                    <p id="footerWhatNote">Du gibst einfach deine einzelnen Aufenthaltszeiträume oder deinen Visumszeitraum ein – alles andere übernimmt das Tool.</p>
+                    <p id="footerWhatNote">Du gibst einfach deine einzelnen Ein- und Ausreisedaten ein – alles andere übernimmt das Tool.</p>
                 </div>
                 
                 <div class="section">
@@ -767,7 +851,8 @@
     <script>
         let currentLanguage = 'de';
         let currentMode = 'schengen';
-        let visibleStays = 1;
+        let visibleEntries = 1;
+        let visibleExits = 1;
         let calculationPeriodData = null;
 
         const translations = {
@@ -778,7 +863,7 @@
                 mode1Label: 'Schengen 90/180',
                 mode2Label: 'Visum-Prüfung',
                 schengenRuleTitle: 'Schengen-Regel (90/180 Tage)',
-                schengenRuleText: 'Als Tourist dürfen Sie sich maximal <strong>90 Tage</strong> innerhalb von <strong>180 aufeinanderfolgenden Tagen</strong> im Schengen-Raum aufhalten. Geben Sie Ihre bisherigen und geplanten Aufenthalte ein, um Ihre verbleibenden Tage zu berechnen.',
+                schengenRuleText: 'Als Tourist dürfen Sie sich maximal <strong>90 Tage</strong> innerhalb von <strong>180 aufeinanderfolgenden Tagen</strong> im Schengen-Raum aufhalten. Geben Sie Ihre Ein- und Ausreisedaten ein, um Ihre verbleibenden Tage zu berechnen.',
                 visaRuleTitle: 'Visum-Zeitraum Prüfung',
                 visaRuleText: 'Geben Sie Ihre Visum-Details ein und prüfen Sie, ob Ihre geplanten Aufenthalte innerhalb der Visum-Beschränkungen liegen.',
                 visaConfigTitle: '🛂 Visum-Konfiguration',
@@ -789,7 +874,12 @@
                 schengenCalculateBtn: '📊 Aufenthaltstage berechnen',
                 visaCalculateBtn: '🔍 Visum-Compliance prüfen',
                 printBtnText: 'Drucken/Exportieren',
-                addStayBtn: '+ Aufenthalt hinzufügen',
+                addEntryBtn: '+ Einreise hinzufügen',
+                addExitBtn: '+ Ausreise hinzufügen',
+                entryLabel: 'Einreise',
+                exitLabel: 'Ausreise',
+                calculatedStaysTitle: 'Berechnete Aufenthaltszeiten',
+                emptyStaysMessage: 'Geben Sie Ein- und Ausreisedaten ein, um Aufenthaltszeiten zu berechnen.',
                 stayOverviewTitle: 'Eingegebene Aufenthalte',
                 calculationPeriodTitle: 'Aktueller Berechnungszeitraum',
                 calculationPeriodSchengen: 'Aufenthalte in diesem 180-Tage-Zeitraum werden berücksichtigt',
@@ -820,25 +910,6 @@
                 errorStayOutsideVisa: '⚠️ Aufenthalt außerhalb des Visum-Zeitraums',
                 tooManyEntries: 'Zu viele Einreisen',
                 daysOverLimit: 'Tage überschritten',
-                // Footer Übersetzungen
-                footerTitle: '🛂 Aufenthaltsrechner für Schengen | 90 Tage in 180 Tagen + Visumsprüfung',
-                footerIntro: 'Mit unserem kostenlosen Aufenthaltsrechner kannst du ganz einfach prüfen, wie viele Aufenthaltstage im Schengen-Raum du bereits verbraucht hast, wie viele Tage dir noch bleiben – und ob du aktuell legal eingereist bist.',
-                footerFeatures: 'Die Berechnung berücksichtigt sowohl:',
-                footerFeature1: 'die klassische 90/180-Tage-Regel (für visumfreies Reisen)',
-                footerFeature2: 'als auch Aufenthaltszeiten innerhalb eines Schengen-Visums (z. B. Typ-C-Visum mit begrenztem Gültigkeitszeitraum)',
-                footerWhatTitle: '🔍 Was macht unser Aufenthaltsrechner?',
-                footerWhat1: 'Berechnet automatisch, wie viele Tage du im aktuellen 180-Tage-Zeitraum verbracht hast',
-                footerWhat2: 'Zeigt, wie viele Aufenthaltstage noch übrig sind',
-                footerWhat3: 'Prüft bei Bedarf auch, ob du dein Schengen-Visum korrekt nutzt',
-                footerWhat4: 'Gibt an, ab wann eine erneute legale Einreise möglich ist',
-                footerWhatNote: 'Du gibst einfach deine einzelnen Aufenthaltszeiträume oder deinen Visumszeitraum ein – alles andere übernimmt das Tool.',
-                footerWhoTitle: '👤 Für wen ist der Rechner nützlich?',
-                footerWho1: 'Touristen mit visumfreier Einreise (z. B. aus UK, USA, Kanada, Australien)',
-                footerWho2: 'Visa-Inhaber, die ihre 90 Tage im Visumszeitraum einhalten müssen',
-                footerWho3: 'Digitale Nomaden, Geschäftsreisende, Au-Pairs',
-                footerWho4: 'Alle, die rechtssicher im Schengen-Raum reisen möchten',
-                footerBenefit1: '✔ Die Berechnung erfolgt direkt im Browser – keine Datenspeicherung, keine Anmeldung nötig.',
-                footerBenefit2: '✔ Ideal zur Planung, Dokumentation oder zum Nachweis gegenüber Behörden.',
                 violationsTitle: 'Verstöße',
                 remaining: 'übrig',
                 placeholder90: 'z.B. 90',
@@ -849,7 +920,25 @@
                 createdOn: 'Erstellt am',
                 pageInfo: 'Seite 1 von 1',
                 createdWith: 'Erstellt mit: Schengen Aufenthaltsrechner',
-                disclaimer: 'Hinweis: Diese Berechnung dient zur Orientierung. Bei rechtlichen Fragen wenden Sie sich an die zuständigen Behörden.'
+                disclaimer: 'Hinweis: Diese Berechnung dient zur Orientierung. Bei rechtlichen Fragen wenden Sie sich an die zuständigen Behörden.',
+                footerTitle: '🛂 Aufenthaltsrechner für Schengen | 90 Tage in 180 Tagen + Visumsprüfung',
+                footerIntro: 'Mit unserem kostenlosen Aufenthaltsrechner kannst du ganz einfach prüfen, wie viele Aufenthaltstage im Schengen-Raum du bereits verbraucht hast, wie viele Tage dir noch bleiben – und ob du aktuell legal eingereist bist.',
+                footerFeatures: 'Die Berechnung berücksichtigt sowohl:',
+                footerFeature1: 'die klassische 90/180-Tage-Regel (für visumfreies Reisen)',
+                footerFeature2: 'als auch Aufenthaltszeiten innerhalb eines Schengen-Visums (z. B. Typ-C-Visum mit begrenztem Gültigkeitszeitraum)',
+                footerWhatTitle: '🔍 Was macht unser Aufenthaltsrechner?',
+                footerWhat1: 'Berechnet automatisch, wie viele Tage du im aktuellen 180-Tage-Zeitraum verbracht hast',
+                footerWhat2: 'Zeigt, wie viele Aufenthaltstage noch übrig sind',
+                footerWhat3: 'Prüft bei Bedarf auch, ob du dein Schengen-Visum korrekt nutzt',
+                footerWhat4: 'Gibt an, ab wann eine erneute legale Einreise möglich ist',
+                footerWhatNote: 'Du gibst einfach deine einzelnen Ein- und Ausreisedaten ein – alles andere übernimmt das Tool.',
+                footerWhoTitle: '👤 Für wen ist der Rechner nützlich?',
+                footerWho1: 'Touristen mit visumfreier Einreise (z. B. aus UK, USA, Kanada, Australien)',
+                footerWho2: 'Visa-Inhaber, die ihre 90 Tage im Visumszeitraum einhalten müssen',
+                footerWho3: 'Digitale Nomaden, Geschäftsreisende, Au-Pairs',
+                footerWho4: 'Alle, die rechtssicher im Schengen-Raum reisen möchten',
+                footerBenefit1: '✔ Die Berechnung erfolgt direkt im Browser – keine Datenspeicherung, keine Anmeldung nötig.',
+                footerBenefit2: '✔ Ideal zur Planung, Dokumentation oder zum Nachweis gegenüber Behörden.'
             },
             en: {
                 headerTitle: '🇪🇺 Schengen & Visa Stay Calculator',
@@ -858,7 +947,7 @@
                 mode1Label: 'Schengen 90/180',
                 mode2Label: 'Visa Check',
                 schengenRuleTitle: 'Schengen Rule (90/180 days)',
-                schengenRuleText: 'As a tourist, you may stay a maximum of <strong>90 days</strong> within <strong>180 consecutive days</strong> in the Schengen area. Enter your previous and planned stays to calculate your remaining days.',
+                schengenRuleText: 'As a tourist, you may stay a maximum of <strong>90 days</strong> within <strong>180 consecutive days</strong> in the Schengen area. Enter your entry and exit dates to calculate your remaining days.',
                 visaRuleTitle: 'Visa Period Check',
                 visaRuleText: 'Enter your visa details and check if your planned stays are within the visa restrictions.',
                 visaConfigTitle: '🛂 Visa Configuration',
@@ -869,7 +958,12 @@
                 schengenCalculateBtn: '📊 Calculate stay days',
                 visaCalculateBtn: '🔍 Check visa compliance',
                 printBtnText: 'Print/Export',
-                addStayBtn: '+ Add stay',
+                addEntryBtn: '+ Add entry',
+                addExitBtn: '+ Add exit',
+                entryLabel: 'Entry',
+                exitLabel: 'Exit',
+                calculatedStaysTitle: 'Calculated stay periods',
+                emptyStaysMessage: 'Enter entry and exit dates to calculate stay periods.',
                 stayOverviewTitle: 'Entered stays',
                 calculationPeriodTitle: 'Current calculation period',
                 calculationPeriodSchengen: 'Stays within this 180-day period are considered',
@@ -900,25 +994,6 @@
                 errorStayOutsideVisa: '⚠️ Stay outside visa period',
                 tooManyEntries: 'Too many entries',
                 daysOverLimit: 'Days exceeded',
-                // Footer Translations
-                footerTitle: '🛂 Schengen Stay Calculator | 90 days in 180 days + Visa Check',
-                footerIntro: 'With our free stay calculator, you can easily check how many stay days in the Schengen area you have already used, how many days you have left – and whether you are currently legally entered.',
-                footerFeatures: 'The calculation considers both:',
-                footerFeature1: 'the classic 90/180-day rule (for visa-free travel)',
-                footerFeature2: 'as well as stays within a Schengen visa (e.g. Type C visa with limited validity period)',
-                footerWhatTitle: '🔍 What does our stay calculator do?',
-                footerWhat1: 'Automatically calculates how many days you have spent in the current 180-day period',
-                footerWhat2: 'Shows how many stay days are left',
-                footerWhat3: 'Also checks whether you are using your Schengen visa correctly if needed',
-                footerWhat4: 'Indicates when a legal re-entry is possible again',
-                footerWhatNote: 'You simply enter your individual stay periods or your visa period – the tool takes care of everything else.',
-                footerWhoTitle: '👤 Who is the calculator useful for?',
-                footerWho1: 'Tourists with visa-free entry (e.g. from UK, USA, Canada, Australia)',
-                footerWho2: 'Visa holders who must comply with their 90 days within the visa period',
-                footerWho3: 'Digital nomads, business travelers, au pairs',
-                footerWho4: 'Anyone who wants to travel legally in the Schengen area',
-                footerBenefit1: '✔ The calculation is done directly in the browser – no data storage, no registration required.',
-                footerBenefit2: '✔ Ideal for planning, documentation or proof to authorities.',
                 violationsTitle: 'Violations',
                 remaining: 'left',
                 placeholder90: 'e.g. 90',
@@ -929,7 +1004,25 @@
                 createdOn: 'Created on',
                 pageInfo: 'Page 1 of 1',
                 createdWith: 'Created with: Schengen Stay Calculator',
-                disclaimer: 'Note: This calculation is for guidance only. For legal questions, contact the relevant authorities.'
+                disclaimer: 'Note: This calculation is for guidance only. For legal questions, contact the relevant authorities.',
+                footerTitle: '🛂 Schengen Stay Calculator | 90 days in 180 days + Visa Check',
+                footerIntro: 'With our free stay calculator, you can easily check how many stay days in the Schengen area you have already used, how many days you have left – and whether you are currently legally entered.',
+                footerFeatures: 'The calculation considers both:',
+                footerFeature1: 'the classic 90/180-day rule (for visa-free travel)',
+                footerFeature2: 'as well as stays within a Schengen visa (e.g. Type C visa with limited validity period)',
+                footerWhatTitle: '🔍 What does our stay calculator do?',
+                footerWhat1: 'Automatically calculates how many days you have spent in the current 180-day period',
+                footerWhat2: 'Shows how many stay days are left',
+                footerWhat3: 'Also checks whether you are using your Schengen visa correctly if needed',
+                footerWhat4: 'Indicates when a legal re-entry is possible again',
+                footerWhatNote: 'You simply enter your individual entry and exit dates – the tool takes care of everything else.',
+                footerWhoTitle: '👤 Who is the calculator useful for?',
+                footerWho1: 'Tourists with visa-free entry (e.g. from UK, USA, Canada, Australia)',
+                footerWho2: 'Visa holders who must comply with their 90 days within the visa period',
+                footerWho3: 'Digital nomads, business travelers, au pairs',
+                footerWho4: 'Anyone who wants to travel legally in the Schengen area',
+                footerBenefit1: '✔ The calculation is done directly in the browser – no data storage, no registration required.',
+                footerBenefit2: '✔ Ideal for planning, documentation or proof to authorities.'
             }
         };
 
@@ -946,7 +1039,6 @@
                 }
             }
             
-            // Platzhalter und Select-Optionen übersetzen
             const allowedDaysInput = document.getElementById('allowedDays');
             if (allowedDaysInput) {
                 allowedDaysInput.placeholder = translations[lang].placeholder90;
@@ -1002,7 +1094,8 @@
             const visaMode = document.getElementById('visaMode');
             const results = document.getElementById('results');
             
-            visibleStays = 1;
+            visibleEntries = 1;
+            visibleExits = 1;
             
             if (modeSwitch.checked) {
                 currentMode = 'visa';
@@ -1022,13 +1115,17 @@
         function saveCurrentInputs() {
             const savedData = {};
             
-            for (let i = 1; i <= 5; i++) {
-                const startInput = document.getElementById(`${currentMode}Start${i}`);
-                const endInput = document.getElementById(`${currentMode}End${i}`);
-                
-                if (startInput && endInput) {
-                    savedData[`${currentMode}Start${i}`] = startInput.value;
-                    savedData[`${currentMode}End${i}`] = endInput.value;
+            for (let i = 1; i <= 10; i++) {
+                const entryInput = document.getElementById(`${currentMode}Entry${i}`);
+                if (entryInput) {
+                    savedData[`${currentMode}Entry${i}`] = entryInput.value;
+                }
+            }
+            
+            for (let i = 1; i <= 10; i++) {
+                const exitInput = document.getElementById(`${currentMode}Exit${i}`);
+                if (exitInput) {
+                    savedData[`${currentMode}Exit${i}`] = exitInput.value;
                 }
             }
             
@@ -1040,204 +1137,302 @@
                 const input = document.getElementById(id);
                 if (input && value) {
                     input.value = value;
-                    // Trigger the calculateDays function
-                    const match = id.match(/(\w+)(Start|End)(\d+)/);
-                    if (match && match[2] === 'End') {
-                        calculateDays(match[1], parseInt(match[3]));
-                    }
                 }
             }
+            calculateStayPeriods();
+        }
+
+        function calculateStayPeriods() {
+            const entries = [];
+            const exits = [];
+            
+            for (let i = 1; i <= 10; i++) {
+                const entryInput = document.getElementById(`${currentMode}Entry${i}`);
+                if (entryInput && entryInput.value) {
+                    entries.push({
+                        date: new Date(entryInput.value),
+                        index: i
+                    });
+                }
+            }
+            
+            for (let i = 1; i <= 10; i++) {
+                const exitInput = document.getElementById(`${currentMode}Exit${i}`);
+                if (exitInput && exitInput.value) {
+                    exits.push({
+                        date: new Date(exitInput.value),
+                        index: i
+                    });
+                }
+            }
+            
+            entries.sort((a, b) => a.date.getTime() - b.date.getTime());
+            exits.sort((a, b) => a.date.getTime() - b.date.getTime());
+            
+            const stayPeriods = [];
+            const minLength = Math.min(entries.length, exits.length);
+            
+            for (let i = 0; i < minLength; i++) {
+                const entry = entries[i];
+                const exit = exits[i];
+                
+                if (entry.date <= exit.date) {
+                    const timeDiff = exit.date.getTime() - entry.date.getTime();
+                    const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+                    
+                    stayPeriods.push({
+                        number: i + 1,
+                        entryDate: entry.date,
+                        exitDate: exit.date,
+                        days: days
+                    });
+                }
+            }
+            
+            displayCalculatedStays(stayPeriods);
+            return stayPeriods;
+        }
+
+        function displayCalculatedStays(stayPeriods) {
+            const containerId = currentMode === 'schengen' ? 'schengenCalculatedStays' : 'visaCalculatedStays';
+            const container = document.getElementById(containerId);
+            
+            if (!container) return;
+            
+            if (stayPeriods.length === 0) {
+                container.innerHTML = `
+                    <div class="calculated-stays-empty">
+                        <p>${translations[currentLanguage].emptyStaysMessage}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="calculated-stays">
+                    <h3>${translations[currentLanguage].calculatedStaysTitle}</h3>
+                    <div class="stays-list">
+            `;
+            
+            stayPeriods.forEach(stay => {
+                html += `
+                    <div class="calculated-stay-item">
+                        <div class="stay-number">${stay.number}</div>
+                        <div class="stay-details">
+                            <div class="stay-period">
+                                ${stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')} → 
+                                ${stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}
+                            </div>
+                            <div class="stay-duration">${stay.days} ${stay.days === 1 ? translations[currentLanguage].daysText : translations[currentLanguage].daysTextPlural}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
         }
 
         function generateStayEntries() {
             const containerId = currentMode === 'schengen' ? 'schengenStayEntries' : 'visaStayEntries';
             const container = document.getElementById(containerId);
             
-            // Aktuelle Eingaben speichern
             const savedData = saveCurrentInputs();
             
             container.innerHTML = '';
             
-            for (let i = 1; i <= visibleStays; i++) {
+            let entriesHTML = `
+                <div class="entries-section">
+                    <h3>✈️ ${translations[currentLanguage].entryLabel}en</h3>
+                    <div class="entries-grid">
+            `;
+            
+            for (let i = 1; i <= visibleEntries; i++) {
                 const deleteButton = i > 1 ? `
-                    <button type="button" class="delete-stay-btn" onclick="removeStayEntry(${i})" title="Aufenthalt entfernen">
+                    <button type="button" class="delete-entry-btn" onclick="removeEntry(${i})" title="${translations[currentLanguage].entryLabel} entfernen">
                         🗑️
                     </button>
                 ` : '';
                 
-                const entryHTML = `
-                    <div class="stay-entry">
-                        <div class="stay-header">
-                            <h3>🏛️ ${translations[currentLanguage].stayLabel} ${i}</h3>
+                entriesHTML += `
+                    <div class="entry-item">
+                        <div class="entry-header">
+                            <label>${translations[currentLanguage].entryLabel} ${i}</label>
                             ${deleteButton}
                         </div>
-                        <div class="date-inputs">
-                            <div class="input-group">
-                                <label for="${currentMode}Start${i}">${translations[currentLanguage].arrivalLabel}</label>
-                                <input type="date" id="${currentMode}Start${i}" name="${currentMode}Start${i}" onchange="calculateDays('${currentMode}', ${i})">
-                            </div>
-                            <div class="input-group">
-                                <label for="${currentMode}End${i}">${translations[currentLanguage].departureLabel}</label>
-                                <input type="date" id="${currentMode}End${i}" name="${currentMode}End${i}" onchange="calculateDays('${currentMode}', ${i})">
-                            </div>
-                        </div>
-                        <div class="days-display" id="${currentMode}Days${i}"></div>
+                        <input type="date" id="${currentMode}Entry${i}" onchange="calculateStayPeriods()">
                     </div>
                 `;
-                container.innerHTML += entryHTML;
             }
             
-            if (visibleStays < 5) {
-                const addButtonHTML = `
-                    <div class="add-stay-section">
-                        <button type="button" class="add-stay-btn" onclick="addStayEntry()">
-                            ${translations[currentLanguage].addStayBtn}
+            if (visibleEntries < 10) {
+                entriesHTML += `
+                    <div class="add-entry-section">
+                        <button type="button" class="add-entry-btn" onclick="addEntry()">
+                            ${translations[currentLanguage].addEntryBtn}
                         </button>
                     </div>
                 `;
-                container.innerHTML += addButtonHTML;
             }
             
-            // Gespeicherte Eingaben wiederherstellen
+            entriesHTML += `
+                    </div>
+                </div>
+            `;
+            
+            let exitsHTML = `
+                <div class="exits-section">
+                    <h3>🛫 ${translations[currentLanguage].exitLabel}en</h3>
+                    <div class="exits-grid">
+            `;
+            
+            for (let i = 1; i <= visibleExits; i++) {
+                const deleteButton = i > 1 ? `
+                    <button type="button" class="delete-exit-btn" onclick="removeExit(${i})" title="${translations[currentLanguage].exitLabel} entfernen">
+                        🗑️
+                    </button>
+                ` : '';
+                
+                exitsHTML += `
+                    <div class="exit-item">
+                        <div class="exit-header">
+                            <label>${translations[currentLanguage].exitLabel} ${i}</label>
+                            ${deleteButton}
+                        </div>
+                        <input type="date" id="${currentMode}Exit${i}" onchange="calculateStayPeriods()">
+                    </div>
+                `;
+            }
+            
+            if (visibleExits < 10) {
+                exitsHTML += `
+                    <div class="add-exit-section">
+                        <button type="button" class="add-exit-btn" onclick="addExit()">
+                            ${translations[currentLanguage].addExitBtn}
+                        </button>
+                    </div>
+                `;
+            }
+            
+            exitsHTML += `
+                    </div>
+                </div>
+            `;
+            
+            const calculatedStaysHTML = `
+                <div id="${currentMode}CalculatedStays" class="calculated-stays-container">
+                </div>
+            `;
+            
+            container.innerHTML = entriesHTML + exitsHTML + calculatedStaysHTML;
+            
             setTimeout(() => {
                 restoreInputs(savedData);
             }, 10);
         }
 
-        function removeStayEntry(entryIndex) {
-            if (visibleStays > 1 && entryIndex > 1) {
-                // Aktuelle Daten speichern
+        function addEntry() {
+            if (visibleEntries < 10) {
+                visibleEntries++;
+                generateStayEntries();
+            }
+        }
+
+        function addExit() {
+            if (visibleExits < 10) {
+                visibleExits++;
+                generateStayEntries();
+            }
+        }
+
+        function removeEntry(entryIndex) {
+            if (visibleEntries > 1 && entryIndex > 1) {
                 const savedData = saveCurrentInputs();
                 
-                // Daten für gelöschten Eintrag entfernen
-                delete savedData[`${currentMode}Start${entryIndex}`];
-                delete savedData[`${currentMode}End${entryIndex}`];
+                delete savedData[`${currentMode}Entry${entryIndex}`];
                 
-                // Daten für höhere Indizes nach unten verschieben
                 const adjustedData = {};
                 for (const [key, value] of Object.entries(savedData)) {
-                    const match = key.match(/(\w+)(Start|End)(\d+)/);
+                    const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
                     if (match) {
                         const mode = match[1];
                         const type = match[2];
                         const index = parseInt(match[3]);
                         
-                        if (index < entryIndex) {
-                            // Behalten
+                        if (type === 'Entry') {
+                            if (index < entryIndex) {
+                                adjustedData[key] = value;
+                            } else if (index > entryIndex) {
+                                const newKey = `${mode}${type}${index - 1}`;
+                                adjustedData[newKey] = value;
+                            }
+                        } else {
                             adjustedData[key] = value;
-                        } else if (index > entryIndex) {
-                            // Nach unten verschieben
-                            const newKey = `${mode}${type}${index - 1}`;
-                            adjustedData[newKey] = value;
                         }
-                        // index === entryIndex wird übersprungen (gelöscht)
                     }
                 }
                 
-                visibleStays--;
+                visibleEntries--;
+                generateStayEntries();
                 
-                // UI neu generieren
-                const containerId = currentMode === 'schengen' ? 'schengenStayEntries' : 'visaStayEntries';
-                const container = document.getElementById(containerId);
-                container.innerHTML = '';
-                
-                for (let i = 1; i <= visibleStays; i++) {
-                    const deleteButton = i > 1 ? `
-                        <button type="button" class="delete-stay-btn" onclick="removeStayEntry(${i})" title="Aufenthalt entfernen">
-                            🗑️
-                        </button>
-                    ` : '';
-                    
-                    const entryHTML = `
-                        <div class="stay-entry">
-                            <div class="stay-header">
-                                <h3>🏛️ ${translations[currentLanguage].stayLabel} ${i}</h3>
-                                ${deleteButton}
-                            </div>
-                            <div class="date-inputs">
-                                <div class="input-group">
-                                    <label for="${currentMode}Start${i}">${translations[currentLanguage].arrivalLabel}</label>
-                                    <input type="date" id="${currentMode}Start${i}" name="${currentMode}Start${i}" onchange="calculateDays('${currentMode}', ${i})">
-                                </div>
-                                <div class="input-group">
-                                    <label for="${currentMode}End${i}">${translations[currentLanguage].departureLabel}</label>
-                                    <input type="date" id="${currentMode}End${i}" name="${currentMode}End${i}" onchange="calculateDays('${currentMode}', ${i})">
-                                </div>
-                            </div>
-                            <div class="days-display" id="${currentMode}Days${i}"></div>
-                        </div>
-                    `;
-                    container.innerHTML += entryHTML;
-                }
-                
-                if (visibleStays < 5) {
-                    const addButtonHTML = `
-                        <div class="add-stay-section">
-                            <button type="button" class="add-stay-btn" onclick="addStayEntry()">
-                                ${translations[currentLanguage].addStayBtn}
-                            </button>
-                        </div>
-                    `;
-                    container.innerHTML += addButtonHTML;
-                }
-                
-                // Angepasste Daten wiederherstellen
                 setTimeout(() => {
                     restoreInputs(adjustedData);
                 }, 10);
             }
         }
 
-        function addStayEntry() {
-            if (visibleStays < 5) {
-                visibleStays++;
-                generateStayEntries();
-            }
-        }
-
-        function calculateDays(mode, entryNumber) {
-            const startDate = document.getElementById(`${mode}Start${entryNumber}`).value;
-            const endDate = document.getElementById(`${mode}End${entryNumber}`).value;
-            const daysDisplay = document.getElementById(`${mode}Days${entryNumber}`);
-            
-            if (startDate && endDate) {
-                const start = new Date(startDate);
-                const end = new Date(endDate);
+        function removeExit(exitIndex) {
+            if (visibleExits > 1 && exitIndex > 1) {
+                const savedData = saveCurrentInputs();
                 
-                if (end >= start) {
-                    const timeDiff = end.getTime() - start.getTime();
-                    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-                    const daysText = daysDiff === 1 ? translations[currentLanguage].daysText : translations[currentLanguage].daysTextPlural;
-                    daysDisplay.textContent = `📅 ${daysDiff} ${daysText}`;
-                } else {
-                    daysDisplay.textContent = translations[currentLanguage].errorEndDate;
+                delete savedData[`${currentMode}Exit${exitIndex}`];
+                
+                const adjustedData = {};
+                for (const [key, value] of Object.entries(savedData)) {
+                    const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
+                    if (match) {
+                        const mode = match[1];
+                        const type = match[2];
+                        const index = parseInt(match[3]);
+                        
+                        if (type === 'Exit') {
+                            if (index < exitIndex) {
+                                adjustedData[key] = value;
+                            } else if (index > exitIndex) {
+                                const newKey = `${mode}${type}${index - 1}`;
+                                adjustedData[newKey] = value;
+                            }
+                        } else {
+                            adjustedData[key] = value;
+                        }
+                    }
                 }
-            } else {
-                daysDisplay.textContent = '';
+                
+                visibleExits--;
+                generateStayEntries();
+                
+                setTimeout(() => {
+                    restoreInputs(adjustedData);
+                }, 10);
             }
         }
 
         function calculateSchengen() {
-            const stays = [];
+            const stayPeriods = calculateStayPeriods();
             
-            for (let i = 1; i <= 5; i++) {
-                const startDate = document.getElementById(`schengenStart${i}`)?.value;
-                const endDate = document.getElementById(`schengenEnd${i}`)?.value;
-                
-                if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    
-                    if (end >= start) {
-                        stays.push({ start, end });
-                    }
-                }
-            }
-            
-            if (stays.length === 0) {
+            if (stayPeriods.length === 0) {
                 alert(translations[currentLanguage].errorNoStays);
                 return;
             }
+            
+            const stays = stayPeriods.map(period => ({
+                start: period.entryDate,
+                end: period.exitDate
+            }));
             
             stays.sort((a, b) => a.start.getTime() - b.start.getTime());
             
@@ -1322,43 +1517,24 @@
                 return;
             }
             
-            const stays = [];
+            const stayPeriods = calculateStayPeriods();
             
-            for (let i = 1; i <= 5; i++) {
-                const startDate = document.getElementById(`visaStart${i}`)?.value;
-                const endDate = document.getElementById(`visaEnd${i}`)?.value;
-                
-                if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    
-                    if (end >= start) {
-                        stays.push({ start, end });
-                    }
-                }
-            }
-            
-            if (stays.length === 0) {
+            if (stayPeriods.length === 0) {
                 alert(translations[currentLanguage].errorNoStays);
                 return;
             }
             
-            stays.sort((a, b) => a.start.getTime() - b.start.getTime());
-            
             let totalDays = 0;
-            let entriesUsed = 0;
+            let entriesUsed = stayPeriods.length;
             let violations = [];
             
-            stays.forEach((stay, index) => {
-                if (stay.start < visaStartDate || stay.end > visaEndDate) {
+            stayPeriods.forEach((stay, index) => {
+                if (stay.entryDate < visaStartDate || stay.exitDate > visaEndDate) {
                     violations.push(`${translations[currentLanguage].stayLabel} ${index + 1}: ${translations[currentLanguage].errorStayOutsideVisa}`);
                     return;
                 }
                 
-                entriesUsed++;
-                const timeDiff = stay.end.getTime() - stay.start.getTime();
-                const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-                totalDays += days;
+                totalDays += stay.days;
             });
             
             let isCompliant = true;
@@ -1477,31 +1653,14 @@
         }
 
         function collectEnteredStays() {
-            const stays = [];
+            const stayPeriods = calculateStayPeriods();
             
-            for (let i = 1; i <= visibleStays; i++) {
-                const startDate = document.getElementById(`${currentMode}Start${i}`)?.value;
-                const endDate = document.getElementById(`${currentMode}End${i}`)?.value;
-                
-                if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    
-                    if (end >= start) {
-                        const timeDiff = end.getTime() - start.getTime();
-                        const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-                        
-                        stays.push({
-                            number: i,
-                            startDate: start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
-                            endDate: end.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
-                            days: days
-                        });
-                    }
-                }
-            }
-            
-            return stays;
+            return stayPeriods.map(stay => ({
+                number: stay.number,
+                startDate: stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
+                endDate: stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
+                days: stay.days
+            }));
         }
 
         function printResults() {
@@ -1626,9 +1785,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${title}</title>
     <style>
-        @media print {
-            @page { margin: 2cm; size: A4; }
-        }
         body {
             font-family: Arial, sans-serif;
             font-size: 12pt;
@@ -1659,7 +1815,6 @@
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 25px;
-            page-break-inside: avoid;
         }
         .calculation-period h2 {
             font-size: 14pt;
@@ -1684,7 +1839,6 @@
         }
         .stays-overview {
             margin-bottom: 30px;
-            page-break-inside: avoid;
         }
         .stays-overview h2 {
             font-size: 14pt;
@@ -1721,7 +1875,6 @@
             justify-content: space-between;
             padding: 10px 0;
             border-bottom: 1px solid #ccc;
-            page-break-inside: avoid;
         }
         .result-label {
             font-weight: 600;
@@ -1743,7 +1896,6 @@
             margin: 20px 0;
             text-align: center;
             border-radius: 5px;
-            page-break-inside: avoid;
         }
         .footer {
             margin-top: 40px;
@@ -1752,7 +1904,6 @@
             font-size: 9pt;
             color: #666;
             text-align: center;
-            page-break-inside: avoid;
         }
         .disclaimer {
             font-style: italic;
@@ -1792,11 +1943,12 @@
             generateStayEntries();
             updatePeriodDisplay();
             
-            // Initiale Übersetzung anwenden
             const allowedDaysInput = document.getElementById('allowedDays');
             if (allowedDaysInput) {
                 allowedDaysInput.placeholder = translations[currentLanguage].placeholder90;
             }
+            
+            calculateStayPeriods();
         });
     </script>
 </body>
