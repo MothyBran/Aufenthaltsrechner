@@ -855,6 +855,33 @@
         let visibleExits = 1;
         let calculationPeriodData = null;
 
+        // Funktion für korrektes Datum in mitteleuropäischer Zeit
+        function getTodayMEZ() {
+            const now = new Date();
+            // Konvertierung zu MEZ/MESZ (UTC+1/UTC+2)
+            const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const mezTime = new Date(utcTime + (1 * 3600000)); // UTC+1 (MEZ)
+            
+            // Prüfung auf Sommerzeit (MESZ = UTC+2)
+            const year = mezTime.getFullYear();
+            const marchLastSunday = new Date(year, 2, 31 - ((new Date(year, 2, 31).getDay() + 6) % 7));
+            const octoberLastSunday = new Date(year, 9, 31 - ((new Date(year, 9, 31).getDay() + 6) % 7));
+            
+            if (now >= marchLastSunday && now < octoberLastSunday) {
+                // Sommerzeit (MESZ = UTC+2)
+                return new Date(utcTime + (2 * 3600000));
+            } else {
+                // Winterzeit (MEZ = UTC+1)
+                return mezTime;
+            }
+        }
+
+        // Funktion für MEZ-Datum ohne Zeitanteil (nur Jahr-Monat-Tag)
+        function getTodayMEZDateOnly() {
+            const mezToday = getTodayMEZ();
+            return new Date(mezToday.getFullYear(), mezToday.getMonth(), mezToday.getDate());
+        }
+
         const translations = {
             de: {
                 headerTitle: '🇪🇺 Schengen & Visa Aufenthaltsrechner',
@@ -885,6 +912,7 @@
                 calculationPeriodSchengen: 'Aufenthalte in diesem 180-Tage-Zeitraum werden berücksichtigt',
                 calculationPeriodVisa: 'Bitte Visum-Daten eingeben um Zeitraum anzuzeigen',
                 today: 'Heute',
+                todayMEZ: 'Heute MEZ',
                 resultsTitle: '🔍 Berechnungsergebnis',
                 stayLabel: 'Aufenthalt',
                 arrivalLabel: 'Ankunftsdatum',
@@ -969,6 +997,7 @@
                 calculationPeriodSchengen: 'Stays within this 180-day period are considered',
                 calculationPeriodVisa: 'Please enter visa data to display period',
                 today: 'Today',
+                todayMEZ: 'Today CET',
                 resultsTitle: '🔍 Calculation Result',
                 stayLabel: 'Stay',
                 arrivalLabel: 'Arrival date',
@@ -1062,12 +1091,12 @@
             const periodNote = document.getElementById('periodNote');
             
             if (currentMode === 'schengen') {
-                const today = new Date();
+                const today = getTodayMEZDateOnly();
                 const period180Start = new Date(today);
                 period180Start.setDate(period180Start.getDate() - 180);
                 
                 periodStart.textContent = period180Start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
-                periodEnd.textContent = today.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') + ` (${translations[currentLanguage].today})`;
+                periodEnd.textContent = today.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') + ` (${translations[currentLanguage].todayMEZ})`;
                 periodNote.textContent = translations[currentLanguage].calculationPeriodSchengen;
             } else {
                 const visaStart = document.getElementById('visaStart')?.value;
@@ -1247,7 +1276,7 @@
             
             let entriesHTML = `
                 <div class="entries-section">
-                    <h3>✈️ ${translations[currentLanguage].entryLabel}en</h3>
+                    <h3>🛬 ${translations[currentLanguage].entryLabel}en</h3>
                     <div class="entries-grid">
             `;
             
@@ -1436,7 +1465,7 @@
             
             stays.sort((a, b) => a.start.getTime() - b.start.getTime());
             
-            const today = new Date();
+            const today = getTodayMEZDateOnly();
             const lastDate = stays.reduce((latest, stay) => {
                 return stay.end > latest ? stay.end : latest;
             }, today);
@@ -1674,7 +1703,7 @@
                 
                 const enteredStays = collectEnteredStays();
                 
-                const now = new Date();
+                const now = getTodayMEZ();
                 const printDate = now.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') + 
                                  ' ' + now.toLocaleTimeString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
                 
@@ -1934,6 +1963,72 @@
         }
 
         function showTextExport() {
+            const resultsDiv = document.getElementById('results');
+            const resultItems = resultsDiv.querySelectorAll('.result-item');
+            
+            const enteredStays = collectEnteredStays();
+            
+            let textContent = currentMode === 'schengen' 
+                ? (currentLanguage === 'de' ? 'SCHENGEN AUFENTHALTSBERECHNUNG (90/180 Tage)' : 'SCHENGEN STAY CALCULATION (90/180 days)')
+                : (currentLanguage === 'de' ? 'VISUM AUFENTHALTSBERECHNUNG' : 'VISA STAY CALCULATION');
+            
+            textContent += '\n' + '='.repeat(60) + '\n\n';
+            textContent += translations[currentLanguage].createdOn + ': ' + getTodayMEZ().toLocaleString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') + '\n\n';
+            
+            if (calculationPeriodData) {
+                const periodStart = calculationPeriodData.start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
+                const periodEnd = calculationPeriodData.end.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
+                
+                let periodTitle, periodNote;
+                if (calculationPeriodData.mode === 'schengen') {
+                    periodTitle = currentLanguage === 'de' ? 'BERECHNUNGSZEITRAUM (180 Tage)' : 'CALCULATION PERIOD (180 days)';
+                    periodNote = currentLanguage === 'de' ? 'Aufenthaltstage in diesem Zeitraum werden für die 90/180-Tage-Regel berücksichtigt.' : 'Stay days in this period are considered for the 90/180 day rule.';
+                } else {
+                    periodTitle = currentLanguage === 'de' ? 'VISUM-GÜLTIGKEITSZEITRAUM' : 'VISA VALIDITY PERIOD';
+                    periodNote = currentLanguage === 'de' ? 'Alle Aufenthalte müssen innerhalb dieses Zeitraums liegen.' : 'All stays must be within this period.';
+                }
+                
+                textContent += `${periodTitle}:\n`;
+                textContent += `${periodStart} → ${periodEnd}\n`;
+                textContent += `${periodNote}\n\n`;
+            }
+            
+            if (enteredStays.length > 0) {
+                textContent += translations[currentLanguage].stayOverviewTitle + ':\n';
+                textContent += '-'.repeat(40) + '\n';
+                enteredStays.forEach(stay => {
+                    textContent += `${stay.number}. ${stay.startDate} - ${stay.endDate} (${stay.days} ${translations[currentLanguage].daysTextPlural})\n`;
+                });
+                textContent += '\n';
+            }
+            
+            textContent += 'BERECHNUNGSERGEBNIS:\n';
+            textContent += '-'.repeat(40) + '\n';
+            
+            resultItems.forEach(item => {
+                const label = item.querySelector('.result-label')?.textContent || '';
+                const value = item.querySelector('.result-value')?.textContent || '';
+                textContent += `${label}: ${value}\n`;
+            });
+            
+            const nextEntry = resultsDiv.querySelector('.next-entry-date');
+            if (nextEntry) {
+                textContent += '\n' + nextEntry.textContent + '\n';
+            }
+            
+            textContent += '\n' + '='.repeat(60) + '\n';
+            textContent += translations[currentLanguage].disclaimer;
+            
+            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'schengen-berechnung.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
             alert(currentLanguage === 'de' 
                 ? 'Die Berechnung wurde als Textdatei heruntergeladen.' 
                 : 'The calculation has been downloaded as a text file.');
@@ -1949,6 +2044,12 @@
             }
             
             calculateStayPeriods();
+            
+            // Debug-Info für MEZ-Datum in Konsole
+            const mezToday = getTodayMEZ();
+            console.log('🕐 Aktuelles MEZ-Datum:', mezToday.toLocaleDateString('de-DE'), mezToday.toLocaleTimeString('de-DE'));
+            console.log('🌍 Browser-Zeitzone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+            console.log('📅 Verwendetes Datum für Berechnungen:', getTodayMEZDateOnly().toLocaleDateString('de-DE'));
         });
     </script>
 </body>
