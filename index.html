@@ -242,6 +242,42 @@
             font-size: 1.1rem;
         }
 
+        .stay-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .stay-header h3 {
+            margin: 0;
+            color: #495057;
+            font-size: 1.1rem;
+        }
+
+        .delete-stay-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(220, 53, 69, 0.3);
+            min-width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-stay-btn:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(220, 53, 69, 0.4);
+        }
+
         .date-inputs {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -564,6 +600,17 @@
                 padding: 12px 20px;
                 font-size: 0.9rem;
             }
+
+            .delete-stay-btn {
+                min-width: 35px;
+                height: 35px;
+                padding: 6px 8px;
+                font-size: 0.9rem;
+            }
+
+            .stay-header {
+                gap: 10px;
+            }
         }
     </style>
 </head>
@@ -826,6 +873,23 @@
             }
         };
 
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            
+            document.querySelectorAll('.language-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            for (const [key, value] of Object.entries(translations[lang])) {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.innerHTML = value;
+                }
+            }
+            
+            generateStayEntries();
+            updatePeriodDisplay();
+        }
+
         function updatePeriodDisplay() {
             const periodStart = document.getElementById('periodStart');
             const periodEnd = document.getElementById('periodEnd');
@@ -858,23 +922,6 @@
             }
         }
 
-        function setLanguage(lang) {
-            currentLanguage = lang;
-            
-            document.querySelectorAll('.language-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            for (const [key, value] of Object.entries(translations[lang])) {
-                const element = document.getElementById(key);
-                if (element) {
-                    element.innerHTML = value;
-                }
-            }
-            
-            generateStayEntries();
-            updatePeriodDisplay();
-        }
-
         function toggleMode() {
             const modeSwitch = document.getElementById('modeSwitch');
             const schengenMode = document.getElementById('schengenMode');
@@ -898,15 +945,58 @@
             updatePeriodDisplay();
         }
 
+        function saveCurrentInputs() {
+            const savedData = {};
+            
+            for (let i = 1; i <= 5; i++) {
+                const startInput = document.getElementById(`${currentMode}Start${i}`);
+                const endInput = document.getElementById(`${currentMode}End${i}`);
+                
+                if (startInput && endInput) {
+                    savedData[`${currentMode}Start${i}`] = startInput.value;
+                    savedData[`${currentMode}End${i}`] = endInput.value;
+                }
+            }
+            
+            return savedData;
+        }
+
+        function restoreInputs(savedData) {
+            for (const [id, value] of Object.entries(savedData)) {
+                const input = document.getElementById(id);
+                if (input && value) {
+                    input.value = value;
+                    // Trigger the calculateDays function
+                    const match = id.match(/(\w+)(Start|End)(\d+)/);
+                    if (match && match[2] === 'End') {
+                        calculateDays(match[1], parseInt(match[3]));
+                    }
+                }
+            }
+        }
+
         function generateStayEntries() {
             const containerId = currentMode === 'schengen' ? 'schengenStayEntries' : 'visaStayEntries';
             const container = document.getElementById(containerId);
+            
+            // Aktuelle Eingaben speichern
+            const savedData = saveCurrentInputs();
+            
             container.innerHTML = '';
             
             for (let i = 1; i <= visibleStays; i++) {
+                const deleteButton = i > 1 ? `
+                    <button type="button" class="delete-stay-btn" onclick="removeStayEntry(${i})" title="Aufenthalt entfernen">
+                        🗑️
+                    </button>
+                ` : '';
+                
                 const entryHTML = `
                     <div class="stay-entry">
-                        <h3>🏛️ ${translations[currentLanguage].stayLabel} ${i}</h3>
+                        <div class="stay-header">
+                            <h3>🏛️ ${translations[currentLanguage].stayLabel} ${i}</h3>
+                            ${deleteButton}
+                        </div>
                         <div class="date-inputs">
                             <div class="input-group">
                                 <label for="${currentMode}Start${i}">${translations[currentLanguage].arrivalLabel}</label>
@@ -932,6 +1022,95 @@
                     </div>
                 `;
                 container.innerHTML += addButtonHTML;
+            }
+            
+            // Gespeicherte Eingaben wiederherstellen
+            setTimeout(() => {
+                restoreInputs(savedData);
+            }, 10);
+        }
+
+        function removeStayEntry(entryIndex) {
+            if (visibleStays > 1 && entryIndex > 1) {
+                // Aktuelle Daten speichern
+                const savedData = saveCurrentInputs();
+                
+                // Daten für gelöschten Eintrag entfernen
+                delete savedData[`${currentMode}Start${entryIndex}`];
+                delete savedData[`${currentMode}End${entryIndex}`];
+                
+                // Daten für höhere Indizes nach unten verschieben
+                const adjustedData = {};
+                for (const [key, value] of Object.entries(savedData)) {
+                    const match = key.match(/(\w+)(Start|End)(\d+)/);
+                    if (match) {
+                        const mode = match[1];
+                        const type = match[2];
+                        const index = parseInt(match[3]);
+                        
+                        if (index < entryIndex) {
+                            // Behalten
+                            adjustedData[key] = value;
+                        } else if (index > entryIndex) {
+                            // Nach unten verschieben
+                            const newKey = `${mode}${type}${index - 1}`;
+                            adjustedData[newKey] = value;
+                        }
+                        // index === entryIndex wird übersprungen (gelöscht)
+                    }
+                }
+                
+                visibleStays--;
+                
+                // UI neu generieren
+                const containerId = currentMode === 'schengen' ? 'schengenStayEntries' : 'visaStayEntries';
+                const container = document.getElementById(containerId);
+                container.innerHTML = '';
+                
+                for (let i = 1; i <= visibleStays; i++) {
+                    const deleteButton = i > 1 ? `
+                        <button type="button" class="delete-stay-btn" onclick="removeStayEntry(${i})" title="Aufenthalt entfernen">
+                            🗑️
+                        </button>
+                    ` : '';
+                    
+                    const entryHTML = `
+                        <div class="stay-entry">
+                            <div class="stay-header">
+                                <h3>🏛️ ${translations[currentLanguage].stayLabel} ${i}</h3>
+                                ${deleteButton}
+                            </div>
+                            <div class="date-inputs">
+                                <div class="input-group">
+                                    <label for="${currentMode}Start${i}">${translations[currentLanguage].arrivalLabel}</label>
+                                    <input type="date" id="${currentMode}Start${i}" name="${currentMode}Start${i}" onchange="calculateDays('${currentMode}', ${i})">
+                                </div>
+                                <div class="input-group">
+                                    <label for="${currentMode}End${i}">${translations[currentLanguage].departureLabel}</label>
+                                    <input type="date" id="${currentMode}End${i}" name="${currentMode}End${i}" onchange="calculateDays('${currentMode}', ${i})">
+                                </div>
+                            </div>
+                            <div class="days-display" id="${currentMode}Days${i}"></div>
+                        </div>
+                    `;
+                    container.innerHTML += entryHTML;
+                }
+                
+                if (visibleStays < 5) {
+                    const addButtonHTML = `
+                        <div class="add-stay-section">
+                            <button type="button" class="add-stay-btn" onclick="addStayEntry()">
+                                ${translations[currentLanguage].addStayBtn}
+                            </button>
+                        </div>
+                    `;
+                    container.innerHTML += addButtonHTML;
+                }
+                
+                // Angepasste Daten wiederherstellen
+                setTimeout(() => {
+                    restoreInputs(adjustedData);
+                }, 10);
             }
         }
 
@@ -967,9 +1146,9 @@
         function calculateSchengen() {
             const stays = [];
             
-            for (let i = 1; i <= visibleStays; i++) {
-                const startDate = document.getElementById(`schengenStart${i}`).value;
-                const endDate = document.getElementById(`schengenEnd${i}`).value;
+            for (let i = 1; i <= 5; i++) {
+                const startDate = document.getElementById(`schengenStart${i}`)?.value;
+                const endDate = document.getElementById(`schengenEnd${i}`)?.value;
                 
                 if (startDate && endDate) {
                     const start = new Date(startDate);
@@ -1071,9 +1250,9 @@
             
             const stays = [];
             
-            for (let i = 1; i <= visibleStays; i++) {
-                const startDate = document.getElementById(`visaStart${i}`).value;
-                const endDate = document.getElementById(`visaEnd${i}`).value;
+            for (let i = 1; i <= 5; i++) {
+                const startDate = document.getElementById(`visaStart${i}`)?.value;
+                const endDate = document.getElementById(`visaEnd${i}`)?.value;
                 
                 if (startDate && endDate) {
                     const start = new Date(startDate);
@@ -1223,6 +1402,34 @@
             resultsDiv.scrollIntoView({ behavior: 'smooth' });
         }
 
+        function collectEnteredStays() {
+            const stays = [];
+            
+            for (let i = 1; i <= visibleStays; i++) {
+                const startDate = document.getElementById(`${currentMode}Start${i}`)?.value;
+                const endDate = document.getElementById(`${currentMode}End${i}`)?.value;
+                
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    
+                    if (end >= start) {
+                        const timeDiff = end.getTime() - start.getTime();
+                        const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+                        
+                        stays.push({
+                            number: i,
+                            startDate: start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
+                            endDate: end.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
+                            days: days
+                        });
+                    }
+                }
+            }
+            
+            return stays;
+        }
+
         function printResults() {
             try {
                 const resultsDiv = document.getElementById('results');
@@ -1266,34 +1473,6 @@
                 console.error('Print error:', error);
                 showTextExport();
             }
-        }
-
-        function collectEnteredStays() {
-            const stays = [];
-            
-            for (let i = 1; i <= visibleStays; i++) {
-                const startDate = document.getElementById(`${currentMode}Start${i}`)?.value;
-                const endDate = document.getElementById(`${currentMode}End${i}`)?.value;
-                
-                if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    
-                    if (end >= start) {
-                        const timeDiff = end.getTime() - start.getTime();
-                        const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-                        
-                        stays.push({
-                            number: i,
-                            startDate: start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
-                            endDate: end.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
-                            days: days
-                        });
-                    }
-                }
-            }
-            
-            return stays;
         }
 
         function createPrintHTML(title, date, resultsHTML, enteredStays, calculationPeriod) {
@@ -1535,74 +1714,6 @@
         }
 
         function showTextExport() {
-            const resultsDiv = document.getElementById('results');
-            const resultItems = resultsDiv.querySelectorAll('.result-item');
-            
-            const enteredStays = collectEnteredStays();
-            
-            let textContent = currentMode === 'schengen' 
-                ? (currentLanguage === 'de' ? 'SCHENGEN AUFENTHALTSBERECHNUNG (90/180 Tage)' : 'SCHENGEN STAY CALCULATION (90/180 days)')
-                : (currentLanguage === 'de' ? 'VISUM AUFENTHALTSBERECHNUNG' : 'VISA STAY CALCULATION');
-            
-            textContent += '\n' + '='.repeat(60) + '\n\n';
-            textContent += 'Erstellt am: ' + new Date().toLocaleString() + '\n\n';
-            
-            if (calculationPeriodData) {
-                const periodStart = calculationPeriodData.start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
-                const periodEnd = calculationPeriodData.end.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
-                
-                let periodTitle, periodNote;
-                if (calculationPeriodData.mode === 'schengen') {
-                    periodTitle = currentLanguage === 'de' ? 'BERECHNUNGSZEITRAUM (180 Tage)' : 'CALCULATION PERIOD (180 days)';
-                    periodNote = currentLanguage === 'de' ? 'Aufenthaltstage in diesem Zeitraum werden für die 90/180-Tage-Regel berücksichtigt.' : 'Stay days in this period are considered for the 90/180 day rule.';
-                } else {
-                    periodTitle = currentLanguage === 'de' ? 'VISUM-GÜLTIGKEITSZEITRAUM' : 'VISA VALIDITY PERIOD';
-                    periodNote = currentLanguage === 'de' ? 'Alle Aufenthalte müssen innerhalb dieses Zeitraums liegen.' : 'All stays must be within this period.';
-                }
-                
-                textContent += `${periodTitle}:\n`;
-                textContent += `${periodStart} → ${periodEnd}\n`;
-                textContent += `${periodNote}\n\n`;
-            }
-            
-            if (enteredStays.length > 0) {
-                textContent += translations[currentLanguage].stayOverviewTitle + ':\n';
-                textContent += '-'.repeat(40) + '\n';
-                enteredStays.forEach(stay => {
-                    textContent += `${stay.number}. ${stay.startDate} - ${stay.endDate} (${stay.days} ${translations[currentLanguage].daysTextPlural})\n`;
-                });
-                textContent += '\n';
-            }
-            
-            textContent += 'BERECHNUNGSERGEBNIS:\n';
-            textContent += '-'.repeat(40) + '\n';
-            
-            resultItems.forEach(item => {
-                const label = item.querySelector('.result-label')?.textContent || '';
-                const value = item.querySelector('.result-value')?.textContent || '';
-                textContent += `${label}: ${value}\n`;
-            });
-            
-            const nextEntry = resultsDiv.querySelector('.next-entry-date');
-            if (nextEntry) {
-                textContent += '\n' + nextEntry.textContent + '\n';
-            }
-            
-            textContent += '\n' + '='.repeat(60) + '\n';
-            textContent += currentLanguage === 'de' 
-                ? 'Hinweis: Diese Berechnung dient zur Orientierung.\nBei rechtlichen Fragen wenden Sie sich an die zuständigen Behörden.'
-                : 'Note: This calculation is for guidance only.\nFor legal questions, contact the relevant authorities.';
-            
-            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'schengen-berechnung.txt';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
             alert(currentLanguage === 'de' 
                 ? 'Die Berechnung wurde als Textdatei heruntergeladen.' 
                 : 'The calculation has been downloaded as a text file.');
