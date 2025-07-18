@@ -692,9 +692,9 @@
                         <div class="input-group">
                             <label for="allowedEntries" id="allowedEntriesLabel">Erlaubte Einreisen</label>
                             <select id="allowedEntries">
-                                <option value="1">1 (Einmalig)</option>
-                                <option value="2">2 (Zweimalig)</option>
-                                <option value="multi">MULTI (Mehrfach)</option>
+                                <option value="1" id="singleEntry">1 (Einmalig)</option>
+                                <option value="2" id="doubleEntry">2 (Zweimalig)</option>
+                                <option value="multi" id="multiEntry">MULTI (Mehrfach)</option>
                             </select>
                         </div>
                     </div>
@@ -720,45 +720,45 @@
         
         <div class="footer">
             <div class="footer-content">
-                <h2>🛂 Aufenthaltsrechner für Schengen | 90 Tage in 180 Tagen + Visumsprüfung</h2>
+                <h2 id="footerTitle">🛂 Aufenthaltsrechner für Schengen | 90 Tage in 180 Tagen + Visumsprüfung</h2>
                 
-                <p class="intro-text">
+                <p class="intro-text" id="footerIntro">
                     Mit unserem kostenlosen Aufenthaltsrechner kannst du ganz einfach prüfen, wie viele Aufenthaltstage im Schengen-Raum du bereits verbraucht hast, wie viele Tage dir noch bleiben – und ob du aktuell legal eingereist bist.
                 </p>
                 
-                <p class="features-text">
+                <p class="features-text" id="footerFeatures">
                     Die Berechnung berücksichtigt sowohl:
                 </p>
                 
                 <ul class="feature-list">
-                    <li><strong>die klassische 90/180-Tage-Regel</strong> (für visumfreies Reisen)</li>
-                    <li><strong>als auch Aufenthaltszeiten innerhalb eines Schengen-Visums</strong> (z. B. Typ-C-Visum mit begrenztem Gültigkeitszeitraum)</li>
+                    <li><strong id="footerFeature1">die klassische 90/180-Tage-Regel</strong> (für visumfreies Reisen)</li>
+                    <li><strong id="footerFeature2">als auch Aufenthaltszeiten innerhalb eines Schengen-Visums</strong> (z. B. Typ-C-Visum mit begrenztem Gültigkeitszeitraum)</li>
                 </ul>
                 
                 <div class="section">
-                    <h3>🔍 Was macht unser Aufenthaltsrechner?</h3>
+                    <h3 id="footerWhatTitle">🔍 Was macht unser Aufenthaltsrechner?</h3>
                     <ul>
-                        <li>Berechnet automatisch, wie viele Tage du im aktuellen 180-Tage-Zeitraum verbracht hast</li>
-                        <li>Zeigt, wie viele Aufenthaltstage noch übrig sind</li>
-                        <li>Prüft bei Bedarf auch, ob du dein Schengen-Visum korrekt nutzt</li>
-                        <li>Gibt an, ab wann eine erneute legale Einreise möglich ist</li>
+                        <li id="footerWhat1">Berechnet automatisch, wie viele Tage du im aktuellen 180-Tage-Zeitraum verbracht hast</li>
+                        <li id="footerWhat2">Zeigt, wie viele Aufenthaltstage noch übrig sind</li>
+                        <li id="footerWhat3">Prüft bei Bedarf auch, ob du dein Schengen-Visum korrekt nutzt</li>
+                        <li id="footerWhat4">Gibt an, ab wann eine erneute legale Einreise möglich ist</li>
                     </ul>
-                    <p>Du gibst einfach deine einzelnen Aufenthaltszeiträume oder deinen Visumszeitraum ein – alles andere übernimmt das Tool.</p>
+                    <p id="footerWhatNote">Du gibst einfach deine einzelnen Aufenthaltszeiträume oder deinen Visumszeitraum ein – alles andere übernimmt das Tool.</p>
                 </div>
                 
                 <div class="section">
-                    <h3>👤 Für wen ist der Rechner nützlich?</h3>
+                    <h3 id="footerWhoTitle">👤 Für wen ist der Rechner nützlich?</h3>
                     <ul>
-                        <li>Touristen mit visumfreier Einreise (z. B. aus UK, USA, Kanada, Australien)</li>
-                        <li>Visa-Inhaber, die ihre 90 Tage im Visumszeitraum einhalten müssen</li>
-                        <li>Digitale Nomaden, Geschäftsreisende, Au-Pairs</li>
-                        <li>Alle, die rechtssicher im Schengen-Raum reisen möchten</li>
+                        <li id="footerWho1">Touristen mit visumfreier Einreise (z. B. aus UK, USA, Kanada, Australien)</li>
+                        <li id="footerWho2">Visa-Inhaber, die ihre 90 Tage im Visumszeitraum einhalten müssen</li>
+                        <li id="footerWho3">Digitale Nomaden, Geschäftsreisende, Au-Pairs</li>
+                        <li id="footerWho4">Alle, die rechtssicher im Schengen-Raum reisen möchten</li>
                     </ul>
                 </div>
                 
                 <div class="benefits">
-                    <p>✔ Die Berechnung erfolgt direkt im Browser – keine Datenspeicherung, keine Anmeldung nötig.</p>
-                    <p>✔ Ideal zur Planung, Dokumentation oder zum Nachweis gegenüber Behörden.</p>
+                    <p id="footerBenefit1">✔ Die Berechnung erfolgt direkt im Browser – keine Datenspeicherung, keine Anmeldung nötig.</p>
+                    <p id="footerBenefit2">✔ Ideal zur Planung, Dokumentation oder zum Nachweis gegenüber Behörden.</p>
                 </div>
             </div>
         </div>
@@ -819,7 +819,37 @@
                 errorVisaDates: 'Visum-Enddatum muss nach Startdatum liegen.',
                 errorStayOutsideVisa: '⚠️ Aufenthalt außerhalb des Visum-Zeitraums',
                 tooManyEntries: 'Zu viele Einreisen',
-                daysOverLimit: 'Tage überschritten'
+                daysOverLimit: 'Tage überschritten',
+                // Footer Übersetzungen
+                footerTitle: '🛂 Aufenthaltsrechner für Schengen | 90 Tage in 180 Tagen + Visumsprüfung',
+                footerIntro: 'Mit unserem kostenlosen Aufenthaltsrechner kannst du ganz einfach prüfen, wie viele Aufenthaltstage im Schengen-Raum du bereits verbraucht hast, wie viele Tage dir noch bleiben – und ob du aktuell legal eingereist bist.',
+                footerFeatures: 'Die Berechnung berücksichtigt sowohl:',
+                footerFeature1: 'die klassische 90/180-Tage-Regel (für visumfreies Reisen)',
+                footerFeature2: 'als auch Aufenthaltszeiten innerhalb eines Schengen-Visums (z. B. Typ-C-Visum mit begrenztem Gültigkeitszeitraum)',
+                footerWhatTitle: '🔍 Was macht unser Aufenthaltsrechner?',
+                footerWhat1: 'Berechnet automatisch, wie viele Tage du im aktuellen 180-Tage-Zeitraum verbracht hast',
+                footerWhat2: 'Zeigt, wie viele Aufenthaltstage noch übrig sind',
+                footerWhat3: 'Prüft bei Bedarf auch, ob du dein Schengen-Visum korrekt nutzt',
+                footerWhat4: 'Gibt an, ab wann eine erneute legale Einreise möglich ist',
+                footerWhatNote: 'Du gibst einfach deine einzelnen Aufenthaltszeiträume oder deinen Visumszeitraum ein – alles andere übernimmt das Tool.',
+                footerWhoTitle: '👤 Für wen ist der Rechner nützlich?',
+                footerWho1: 'Touristen mit visumfreier Einreise (z. B. aus UK, USA, Kanada, Australien)',
+                footerWho2: 'Visa-Inhaber, die ihre 90 Tage im Visumszeitraum einhalten müssen',
+                footerWho3: 'Digitale Nomaden, Geschäftsreisende, Au-Pairs',
+                footerWho4: 'Alle, die rechtssicher im Schengen-Raum reisen möchten',
+                footerBenefit1: '✔ Die Berechnung erfolgt direkt im Browser – keine Datenspeicherung, keine Anmeldung nötig.',
+                footerBenefit2: '✔ Ideal zur Planung, Dokumentation oder zum Nachweis gegenüber Behörden.',
+                violationsTitle: 'Verstöße',
+                remaining: 'übrig',
+                placeholder90: 'z.B. 90',
+                singleEntry: '1 (Einmalig)',
+                doubleEntry: '2 (Zweimalig)',
+                multiEntry: 'MULTI (Mehrfach)',
+                visaPeriodLabel: 'Visum-Zeitraum',
+                createdOn: 'Erstellt am',
+                pageInfo: 'Seite 1 von 1',
+                createdWith: 'Erstellt mit: Schengen Aufenthaltsrechner',
+                disclaimer: 'Hinweis: Diese Berechnung dient zur Orientierung. Bei rechtlichen Fragen wenden Sie sich an die zuständigen Behörden.'
             },
             en: {
                 headerTitle: '🇪🇺 Schengen & Visa Stay Calculator',
@@ -869,7 +899,37 @@
                 errorVisaDates: 'Visa end date must be after start date.',
                 errorStayOutsideVisa: '⚠️ Stay outside visa period',
                 tooManyEntries: 'Too many entries',
-                daysOverLimit: 'Days exceeded'
+                daysOverLimit: 'Days exceeded',
+                // Footer Translations
+                footerTitle: '🛂 Schengen Stay Calculator | 90 days in 180 days + Visa Check',
+                footerIntro: 'With our free stay calculator, you can easily check how many stay days in the Schengen area you have already used, how many days you have left – and whether you are currently legally entered.',
+                footerFeatures: 'The calculation considers both:',
+                footerFeature1: 'the classic 90/180-day rule (for visa-free travel)',
+                footerFeature2: 'as well as stays within a Schengen visa (e.g. Type C visa with limited validity period)',
+                footerWhatTitle: '🔍 What does our stay calculator do?',
+                footerWhat1: 'Automatically calculates how many days you have spent in the current 180-day period',
+                footerWhat2: 'Shows how many stay days are left',
+                footerWhat3: 'Also checks whether you are using your Schengen visa correctly if needed',
+                footerWhat4: 'Indicates when a legal re-entry is possible again',
+                footerWhatNote: 'You simply enter your individual stay periods or your visa period – the tool takes care of everything else.',
+                footerWhoTitle: '👤 Who is the calculator useful for?',
+                footerWho1: 'Tourists with visa-free entry (e.g. from UK, USA, Canada, Australia)',
+                footerWho2: 'Visa holders who must comply with their 90 days within the visa period',
+                footerWho3: 'Digital nomads, business travelers, au pairs',
+                footerWho4: 'Anyone who wants to travel legally in the Schengen area',
+                footerBenefit1: '✔ The calculation is done directly in the browser – no data storage, no registration required.',
+                footerBenefit2: '✔ Ideal for planning, documentation or proof to authorities.',
+                violationsTitle: 'Violations',
+                remaining: 'left',
+                placeholder90: 'e.g. 90',
+                singleEntry: '1 (Single)',
+                doubleEntry: '2 (Double)',
+                multiEntry: 'MULTI (Multiple)',
+                visaPeriodLabel: 'Visa Period',
+                createdOn: 'Created on',
+                pageInfo: 'Page 1 of 1',
+                createdWith: 'Created with: Schengen Stay Calculator',
+                disclaimer: 'Note: This calculation is for guidance only. For legal questions, contact the relevant authorities.'
             }
         };
 
@@ -885,6 +945,20 @@
                     element.innerHTML = value;
                 }
             }
+            
+            // Platzhalter und Select-Optionen übersetzen
+            const allowedDaysInput = document.getElementById('allowedDays');
+            if (allowedDaysInput) {
+                allowedDaysInput.placeholder = translations[lang].placeholder90;
+            }
+            
+            const singleEntry = document.getElementById('singleEntry');
+            const doubleEntry = document.getElementById('doubleEntry');
+            const multiEntry = document.getElementById('multiEntry');
+            
+            if (singleEntry) singleEntry.textContent = translations[lang].singleEntry;
+            if (doubleEntry) doubleEntry.textContent = translations[lang].doubleEntry;
+            if (multiEntry) multiEntry.textContent = translations[lang].multiEntry;
             
             generateStayEntries();
             updatePeriodDisplay();
@@ -1310,7 +1384,7 @@
             
             let statusText, statusClass;
             if (isLegal && remainingDays > 0) {
-                statusText = `${translations[currentLanguage].statusLegal} (${remainingDays} ${translations[currentLanguage].daysTextPlural} übrig)`;
+                statusText = `${translations[currentLanguage].statusLegal} (${remainingDays} ${translations[currentLanguage].daysTextPlural} ${translations[currentLanguage].remaining})`;
                 statusClass = 'status-legal';
             } else if (isLegal && remainingDays === 0) {
                 statusText = translations[currentLanguage].statusExhausted;
@@ -1384,7 +1458,7 @@
                     <span class="result-value ${statusClass}">${statusText}</span>
                 </div>
                 <div class="result-item">
-                    <span class="result-label">🗓️ Visum-Zeitraum</span>
+                    <span class="result-label">🗓️ ${translations[currentLanguage].visaPeriodLabel}</span>
                     <span class="result-value">${visaStart.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')} - ${visaEnd.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}</span>
                 </div>
             `;
@@ -1392,7 +1466,7 @@
             if (violations.length > 0) {
                 resultsList.innerHTML += `
                     <div class="next-entry-date">
-                        <strong>⚠️ Verstöße:</strong><br>
+                        <strong>⚠️ ${translations[currentLanguage].violationsTitle}:</strong><br>
                         ${violations.join('<br>')}
                     </div>
                 `;
@@ -1476,13 +1550,8 @@
         }
 
         function createPrintHTML(title, date, resultsHTML, enteredStays, calculationPeriod) {
-            const disclaimerText = currentLanguage === 'de' 
-                ? 'Hinweis: Diese Berechnung dient zur Orientierung. Bei rechtlichen Fragen wenden Sie sich an die zuständigen Behörden.'
-                : 'Note: This calculation is for guidance only. For legal questions, contact the relevant authorities.';
-                
-            const footerText = currentLanguage === 'de'
-                ? 'Erstellt mit: Schengen Aufenthaltsrechner'
-                : 'Created with: Schengen Stay Calculator';
+            const disclaimerText = translations[currentLanguage].disclaimer;
+            const footerText = translations[currentLanguage].createdWith;
             
             const staysOverviewTitle = translations[currentLanguage].stayOverviewTitle;
             const arrivalLabel = translations[currentLanguage].arrivalLabel;
@@ -1694,7 +1763,7 @@
 <body>
     <div class="header">
         <h1>${title}</h1>
-        <div class="date">Erstellt am: ${date}</div>
+        <div class="date">${translations[currentLanguage].createdOn}: ${date}</div>
     </div>
     
     ${calculationPeriodHTML}
@@ -1707,7 +1776,7 @@
     
     <div class="footer">
         <div class="disclaimer">${disclaimerText}</div>
-        <div>${footerText} | Seite 1 von 1</div>
+        <div>${footerText} | ${translations[currentLanguage].pageInfo}</div>
     </div>
 </body>
 </html>`;
@@ -1722,6 +1791,12 @@
         document.addEventListener('DOMContentLoaded', function() {
             generateStayEntries();
             updatePeriodDisplay();
+            
+            // Initiale Übersetzung anwenden
+            const allowedDaysInput = document.getElementById('allowedDays');
+            if (allowedDaysInput) {
+                allowedDaysInput.placeholder = translations[currentLanguage].placeholder90;
+            }
         });
     </script>
 </body>
