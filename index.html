@@ -1883,49 +1883,66 @@
         }
 
         function printResults() {
-            try {
-                const resultsDiv = document.getElementById('results');
-                const resultsList = document.getElementById('resultsList');
+    try {
+        const resultsDiv = document.getElementById('results');
+        const resultsList = document.getElementById('resultsList');
 
-                if (!resultsDiv || !resultsList) {
-                    throw new Error('No results to print');
-                }
-
-                const enteredStays = collectEnteredStays();
-
-                const now = getTodayMEZ();
-                const printDate = now.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') + 
-                                 ' ' + now.toLocaleTimeString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
-
-                const printTitle = currentMode === 'schengen' 
-                    ? (currentLanguage === 'de' ? 'SCHENGEN AUFENTHALTSBERECHNUNG (90/180 Tage)' : 'SCHENGEN STAY CALCULATION (90/180 days)')
-                    : (currentLanguage === 'de' ? 'VISUM AUFENTHALTSBERECHNUNG' : 'VISA STAY CALCULATION');
-
-                const printHTML = createPrintHTML(printTitle, printDate, resultsList.innerHTML, enteredStays, calculationPeriodData);
-
-                const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
-
-                if (printWindow) {
-                    printWindow.document.write(printHTML);
-                    printWindow.document.close();
-
-                    printWindow.onload = function() {
-                        setTimeout(() => {
-                            printWindow.print();
-                            printWindow.onafterprint = function() {
-                                printWindow.close();
-                            };
-                        }, 500);
-                    };
-                } else {
-                    throw new Error('Popup blocked');
-                }
-
-            } catch (error) {
-                console.error('Print error:', error);
-                showTextExport();
-            }
+        // Wenn noch nichts berechnet wurde
+        if (!resultsDiv || resultsDiv.classList.contains('hidden') || !resultsList) {
+            alert(currentLanguage === 'de'
+                ? 'Bitte zuerst eine Berechnung durchführen.'
+                : 'Please run a calculation first.');
+            return;
         }
+
+        const enteredStays = collectEnteredStays();
+
+        const now = getTodayMEZ();
+        const printDate = now.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') +
+                         ' ' + now.toLocaleTimeString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
+
+        const printTitle = currentMode === 'schengen'
+            ? (currentLanguage === 'de'
+                ? 'SCHENGEN AUFENTHALTSBERECHNUNG (90/180 Tage)'
+                : 'SCHENGEN STAY CALCULATION (90/180 days)')
+            : (currentLanguage === 'de'
+                ? 'VISUM AUFENTHALTSBERECHNUNG'
+                : 'VISA STAY CALCULATION');
+
+        const printHTML = createPrintHTML(
+            printTitle,
+            printDate,
+            resultsList.innerHTML,
+            enteredStays,
+            calculationPeriodData
+        );
+
+        const printWindow = window.open('', '_blank', 'width=900,height=650,scrollbars=yes');
+
+        if (!printWindow) {
+            // Popup geblockt → Fallback Text-Export
+            showTextExport();
+            return;
+        }
+
+        // WICHTIG: erst öffnen, dann schreiben, dann schließen
+        printWindow.document.open();
+        printWindow.document.write(printHTML);
+        printWindow.document.close();
+
+        // Fokus setzen & mit kleinem Delay drucken (hilft bei Chrome/Firefox)
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            // Fenster optional automatisch schließen
+            // printWindow.close();
+        }, 300);
+
+    } catch (error) {
+        console.error('Print error:', error);
+        showTextExport();
+    }
+}
 
         function createPrintHTML(title, date, resultsHTML, enteredStays, calculationPeriod) {
             const disclaimerText = translations[currentLanguage].disclaimer;
