@@ -980,722 +980,782 @@
         </div>
     </div>
 
-<script>
-    let currentLanguage = 'de';
-    let currentMode = 'schengen';
-    let visibleEntries = 1;
-    let visibleExits = 1;
-    let calculationPeriodData = null;
+    <script>
+        let currentLanguage = 'de';
+        let currentMode = 'schengen';
+        let visibleEntries = 1;
+        let visibleExits = 1;
+        let calculationPeriodData = null;
 
-    // Funktion für korrektes Datum in mitteleuropäischer Zeit
-    function getTodayMEZ() {
-        const now = new Date();
-        const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-        const mezTime = new Date(utcTime + (1 * 3600000)); // UTC+1 (MEZ)
+        // Funktion für korrektes Datum in mitteleuropäischer Zeit
+        function getTodayMEZ() {
+            const now = new Date();
+            // Konvertierung zu MEZ/MESZ (UTC+1/UTC+2)
+            const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const mezTime = new Date(utcTime + (1 * 3600000)); // UTC+1 (MEZ)
 
-        const year = mezTime.getFullYear();
-        const marchLastSunday = new Date(year, 2, 31 - ((new Date(year, 2, 31).getDay() + 6) % 7));
-        const octoberLastSunday = new Date(year, 9, 31 - ((new Date(year, 9, 31).getDay() + 6) % 7));
+            // Prüfung auf Sommerzeit (MESZ = UTC+2)
+            const year = mezTime.getFullYear();
+            const marchLastSunday = new Date(year, 2, 31 - ((new Date(year, 2, 31).getDay() + 6) % 7));
+            const octoberLastSunday = new Date(year, 9, 31 - ((new Date(year, 9, 31).getDay() + 6) % 7));
 
-        if (now >= marchLastSunday && now < octoberLastSunday) {
-            // Sommerzeit (MESZ = UTC+2)
-            return new Date(utcTime + (2 * 3600000));
-        } else {
-            // Winterzeit (MEZ = UTC+1)
-            return mezTime;
-        }
-    }
-
-    function getTodayMEZDateOnly() {
-        const mezToday = getTodayMEZ();
-        return new Date(mezToday.getFullYear(), mezToday.getMonth(), mezToday.getDate());
-    }
-
-    function getControlDate() {
-        const input = document.getElementById('controlDateInput');
-        if (input && input.value) {
-            const d = new Date(input.value);
-            return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        }
-        return getTodayMEZDateOnly();
-    }
-
-    const translations = {
-        de: {
-            headerTitle: '🇪🇺 Schengen & Visa Aufenthaltsrechner',
-            headerSubtitle: 'Berechnen Sie Ihre verbleibenden Aufenthaltstage',
-            languageLabel: 'Sprache:',
-            mode1Label: 'Schengen 90/180',
-            mode2Label: 'Visum-Prüfung',
-            schengenRuleTitle: 'Schengen-Regel (90/180 Tage)',
-            schengenRuleText: 'Als Tourist dürfen Sie sich maximal <strong>90 Tage</strong> innerhalb von <strong>180 aufeinanderfolgenden Tagen</strong> im Schengen-Raum aufhalten. Geben Sie Ihre Ein- und Ausreisedaten ein, um Ihre verbleibenden Tage zu berechnen.',
-            visaRuleTitle: 'Visum-Zeitraum Prüfung',
-            visaRuleText: 'Geben Sie Ihre Visum-Details ein und prüfen Sie, ob Ihre geplanten Aufenthalte innerhalb der Visum-Beschränkungen liegen.',
-            visaConfigTitle: '🛂 Visum-Konfiguration',
-            visaStartLabel: 'Visum gültig ab',
-            visaEndLabel: 'Visum gültig bis',
-            allowedDaysLabel: 'Erlaubte Aufenthaltstage',
-            allowedEntriesLabel: 'Erlaubte Einreisen',
-            schengenCalculateBtn: '📊 Aufenthaltstage berechnen',
-            visaCalculateBtn: '🔍 Visum-Compliance prüfen',
-            printBtnText: 'Drucken/Exportieren',
-            addEntryBtn: '+ Einreise hinzufügen',
-            addExitBtn: '+ Ausreise hinzufügen',
-            entryHeading: 'Einreisen',
-            exitHeading: 'Ausreisen',
-            entryLabel: 'Einreise',
-            exitLabel: 'Ausreise',
-            calculatedStaysTitle: 'Berechnete Aufenthaltszeiten',
-            emptyStaysMessage: 'Geben Sie Ein- und Ausreisedaten ein, um Aufenthaltszeiten zu berechnen.',
-            stayOverviewTitle: 'Eingegebene Aufenthalte',
-            calculationPeriodTitle: 'Aktueller Berechnungszeitraum',
-            calculationPeriodSchengen: 'Aufenthalte in diesem 180-Tage-Zeitraum werden berücksichtigt',
-            calculationPeriodVisa: 'Bitte Visum-Daten eingeben um Zeitraum anzuzeigen',
-            today: 'Heute',
-            todayMEZ: 'Heute MEZ',
-            resultsTitle: '🔍 Berechnungsergebnis',
-            stayLabel: 'Aufenthalt',
-            arrivalLabel: 'Ankunftsdatum',
-            departureLabel: 'Abreisedatum',
-            daysText: 'Tag',
-            daysTextPlural: 'Tage',
-            usedDaysLabel: '📊 Genutzte Aufenthaltstage (180-Tage-Zeitraum)',
-            usedDaysVisaLabel: '📊 Genutzte Aufenthaltstage (Visum-Zeitraum)',
-            remainingDaysLabel: '⏰ Verbleibende Aufenthaltstage',
-            allowedStayUntilLabel: '📆 Erlaubter Aufenthalt bis',
-            statusLabel: '⚖️ Aktueller Status',
-            calculationDateLabel: '📅 Berechnungsstichtag',
-            entriesUsedLabel: '🚪 Verwendete Einreisen',
-            statusLegal: '✅ Legal',
-            statusExhausted: '⚠️ Ausgeschöpft (0 Tage übrig)',
-            statusViolation: '❌ Überschreitung',
-            statusVisaValid: '✅ Visum-konform',
-            statusVisaViolation: '❌ Visum-Verletzung',
-            nextEntryText: '🚪 Nächstmögliche legale Einreise:',
-            errorEndDate: '⚠️ Enddatum muss nach Startdatum liegen',
-            errorNoStays: 'Bitte geben Sie mindestens einen Aufenthaltszeitraum ein.',
-            errorVisaConfig: 'Bitte füllen Sie alle Visum-Felder aus.',
-            errorVisaDates: 'Visum-Enddatum muss nach Startdatum liegen.',
-            errorStayOutsideVisa: '⚠️ Aufenthalt außerhalb des Visum-Zeitraums',
-            tooManyEntries: 'Zu viele Einreisen',
-            daysOverLimit: 'Tage überschritten',
-            violationsTitle: 'Verstöße',
-            remaining: 'übrig',
-            placeholder90: 'z.B. 90',
-            singleEntry: '1 (Einmalig)',
-            doubleEntry: '2 (Zweimalig)',
-            multiEntry: 'MULTI (Mehrfach)',
-            visaPeriodLabel: 'Visum-Zeitraum',
-            createdOn: 'Erstellt am',
-            pageInfo: 'Seite 1 von 1',
-            createdWith: 'Erstellt mit: Schengen Aufenthaltsrechner',
-            disclaimer: 'Hinweis: Diese Berechnung dient zur Orientierung. Bei rechtlichen Fragen wenden Sie sich an die zuständigen Behörden.',
-            footerTitle: '🛂 Aufenthaltsrechner für Schengen | 90 Tage in 180 Tagen + Visumsprüfung',
-            footerIntro: 'Mit unserem kostenlosen Aufenthaltsrechner kannst du ganz einfach prüfen, wie viele Aufenthaltstage im Schengen-Raum du bereits verbraucht hast, wie viele Tage dir noch bleiben – und ob du aktuell legal eingereist bist.',
-            footerFeatures: 'Die Berechnung berücksichtigt sowohl:',
-            footerFeature1: 'die klassische 90/180-Tage-Regel (für visumfreies Reisen)',
-            footerFeature2: 'als auch Aufenthaltszeiten innerhalb eines Schengen-Visums (z. B. Typ-C-Visum mit begrenztem Gültigkeitszeitraum)',
-            footerWhatTitle: '🔍 Was macht unser Aufenthaltsrechner?',
-            footerWhat1: 'Berechnet automatisch, wie viele Tage du im aktuellen 180-Tage-Zeitraum verbracht hast',
-            footerWhat2: 'Zeigt, wie viele Aufenthaltstage noch übrig sind',
-            footerWhat3: 'Prüft bei Bedarf auch, ob du dein Schengen-Visum korrekt nutzt',
-            footerWhat4: 'Gibt an, ab wann eine erneute legale Einreise möglich ist',
-            footerWhatNote: 'Du gibst einfach deine einzelnen Ein- und Ausreisedaten ein – alles andere übernimmt das Tool.',
-            footerWhoTitle: '👤 Für wen ist der Rechner nützlich?',
-            footerWho1: 'Touristen mit visumfreier Einreise (z. B. aus UK, USA, Kanada, Australien)',
-            footerWho2: 'Visa-Inhaber, die ihre 90 Tage im Visumszeitraum einhalten müssen',
-            footerWho3: 'Digitale Nomaden, Geschäftsreisende, Au-Pairs',
-            footerWho4: 'Alle, die rechtssicher im Schengen-Raum reisen möchten',
-            footerBenefit1: '✔ Die Berechnung erfolgt direkt im Browser – keine Datenspeicherung, keine Anmeldung nötig.',
-            footerBenefit2: '✔ Ideal zur Planung, Dokumentation oder zum Nachweis gegenüber Behörden.',
-            controlDateLabel: 'Kontrolldatum (Berechnung ab):',
-            partialDataWarning: '⚠️ Hinweis: Es wurden Aufenthalte ohne Ausreisedatum erkannt. Für die Berechnung wurde der Zeitraum bis zur nächsten Einreise bzw. bis zum Kontrolldatum fortgeführt.'
-        },
-        en: {
-            headerTitle: '🇪🇺 Schengen & Visa Stay Calculator',
-            headerSubtitle: 'Calculate your remaining stay days',
-            languageLabel: 'Language:',
-            mode1Label: 'Schengen 90/180',
-            mode2Label: 'Visa Check',
-            schengenRuleTitle: 'Schengen Rule (90/180 days)',
-            schengenRuleText: 'As a tourist, you may stay a maximum of <strong>90 days</strong> within <strong>180 consecutive days</strong> in the Schengen area. Enter your entry and exit dates to calculate your remaining days.',
-            visaRuleTitle: 'Visa Period Check',
-            visaRuleText: 'Enter your visa details and check if your planned stays are within the visa restrictions.',
-            visaConfigTitle: '🛂 Visa Configuration',
-            visaStartLabel: 'Visa valid from',
-            visaEndLabel: 'Visa valid until',
-            allowedDaysLabel: 'Allowed stay days',
-            allowedEntriesLabel: 'Allowed entries',
-            schengenCalculateBtn: '📊 Calculate stay days',
-            visaCalculateBtn: '🔍 Check visa compliance',
-            printBtnText: 'Print/Export',
-            addEntryBtn: '+ Add entry',
-            addExitBtn: '+ Add exit',
-            entryHeading: 'Entries',
-            exitHeading: 'Exits',
-            entryLabel: 'Entry',
-            exitLabel: 'Exit',
-            calculatedStaysTitle: 'Calculated stay periods',
-            emptyStaysMessage: 'Enter entry and exit dates to calculate stay periods.',
-            stayOverviewTitle: 'Entered stays',
-            calculationPeriodTitle: 'Current calculation period',
-            calculationPeriodSchengen: 'Stays within this 180-day period are considered',
-            calculationPeriodVisa: 'Please enter visa data to display period',
-            today: 'Today',
-            todayMEZ: 'Today CET',
-            resultsTitle: '🔍 Calculation Result',
-            stayLabel: 'Stay',
-            arrivalLabel: 'Arrival date',
-            departureLabel: 'Departure date',
-            daysText: 'day',
-            daysTextPlural: 'days',
-            usedDaysLabel: '📊 Used stay days (180-day period)',
-            usedDaysVisaLabel: '📊 Used stay days (visa period)',
-            remainingDaysLabel: '⏰ Remaining stay days',
-            allowedStayUntilLabel: '📆 Allowed stay until',
-            statusLabel: '⚖️ Current status',
-            calculationDateLabel: '📅 Calculation date',
-            entriesUsedLabel: '🚪 Entries used',
-            statusLegal: '✅ Legal',
-            statusExhausted: '⚠️ Exhausted (0 days left)',
-            statusViolation: '❌ Violation',
-            statusVisaValid: '✅ Visa compliant',
-            statusVisaViolation: '❌ Visa violation',
-            nextEntryText: '🚪 Next possible legal entry:',
-            errorEndDate: '⚠️ End date must be after start date',
-            errorNoStays: 'Please enter at least one stay period.',
-            errorVisaConfig: 'Please fill in all visa fields.',
-            errorVisaDates: 'Visa end date must be after start date.',
-            errorStayOutsideVisa: '⚠️ Stay outside visa period',
-            tooManyEntries: 'Too many entries',
-            daysOverLimit: 'Days exceeded',
-            violationsTitle: 'Violations',
-            remaining: 'left',
-            placeholder90: 'e.g. 90',
-            singleEntry: '1 (Single)',
-            doubleEntry: '2 (Double)',
-            multiEntry: 'MULTI (Multiple)',
-            visaPeriodLabel: 'Visa Period',
-            createdOn: 'Created on',
-            pageInfo: 'Page 1 of 1',
-            createdWith: 'Created with: Schengen Stay Calculator',
-            disclaimer: 'Note: This calculation is for guidance only. For legal questions, contact the relevant authorities.',
-            footerTitle: '🛂 Schengen Stay Calculator | 90 days in 180 days + Visa Check',
-            footerIntro: 'With our free stay calculator, you can easily check how many stay days in the Schengen area you have already used, how many days you have left – and whether you are currently legally entered.',
-            footerFeatures: 'The calculation considers both:',
-            footerFeature1: 'the classic 90/180-day rule (for visa-free travel)',
-            footerFeature2: 'as well as stays within a Schengen visa (e.g. Type C visa with limited validity period)',
-            footerWhatTitle: '🔍 What does our stay calculator do?',
-            footerWhat1: 'Automatically calculates how many days you have spent in the current 180-day period',
-            footerWhat2: 'Shows how many stay days are left',
-            footerWhat3: 'Also checks whether you are using your Schengen visa correctly if needed',
-            footerWhat4: 'Indicates when a legal re-entry is possible again',
-            footerWhatNote: 'You simply enter your individual entry and exit dates – the tool takes care of everything else.',
-            footerWhoTitle: '👤 Who is the calculator useful for?',
-            footerWho1: 'Tourists with visa-free entry (e.g. from UK, USA, Canada, Australia)',
-            footerWho2: 'Visa holders who must comply with their 90 days within the visa period',
-            footerWho3: 'Digital nomads, business travelers, au pairs',
-            footerWho4: 'Anyone who wants to travel legally in the Schengen area',
-            footerBenefit1: '✔ The calculation is done directly in the browser – no data storage, no registration required.',
-            footerBenefit2: '✔ Ideal for planning, documentation or proof to authorities.',
-            controlDateLabel: 'Control date (calculation from):',
-            partialDataWarning: '⚠️ Note: Stays without an exit date were detected. For the calculation, the period was continued until the next entry or the control date.'
-        }
-    };
-
-    function setLanguage(lang) {
-        currentLanguage = lang;
-
-        document.querySelectorAll('.language-btn').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
-
-        for (const [key, value] of Object.entries(translations[lang])) {
-            const element = document.getElementById(key);
-            if (element) {
-                element.innerHTML = value;
-            }
-        }
-
-        const allowedDaysInput = document.getElementById('allowedDays');
-        if (allowedDaysInput) {
-            allowedDaysInput.placeholder = translations[lang].placeholder90;
-        }
-
-        const singleEntry = document.getElementById('singleEntry');
-        const doubleEntry = document.getElementById('doubleEntry');
-        const multiEntry = document.getElementById('multiEntry');
-
-        if (singleEntry) singleEntry.textContent = translations[lang].singleEntry;
-        if (doubleEntry) doubleEntry.textContent = translations[lang].doubleEntry;
-        if (multiEntry) multiEntry.textContent = translations[lang].multiEntry;
-
-        generateStayEntries();
-        updatePeriodDisplay();
-    }
-
-    function updatePeriodDisplay() {
-        const periodStart = document.getElementById('periodStart');
-        const periodEnd = document.getElementById('periodEnd');
-        const periodNote = document.getElementById('periodNote');
-        const controlInput = document.getElementById('controlDateInput');
-
-        if (currentMode === 'schengen') {
-            const controlDate = getControlDate();
-            const period180Start = new Date(controlDate);
-            period180Start.setDate(period180Start.getDate() - 180);
-
-            const locale = currentLanguage === 'de' ? 'de-DE' : 'en-GB';
-            const today = getTodayMEZDateOnly();
-
-            periodStart.textContent = period180Start.toLocaleDateString(locale);
-
-            let endText = controlDate.toLocaleDateString(locale);
-            const controlIsToday = controlInput && controlInput.value &&
-                new Date(controlInput.value).getTime() === today.getTime();
-
-            if (!controlInput.value || controlIsToday) {
-                endText += ` (${translations[currentLanguage].todayMEZ})`;
-            }
-
-            periodEnd.textContent = endText;
-            periodNote.textContent = translations[currentLanguage].calculationPeriodSchengen;
-        } else {
-            const visaStart = document.getElementById('visaStart')?.value;
-            const visaEnd = document.getElementById('visaEnd')?.value;
-
-            if (visaStart && visaEnd) {
-                const startDate = new Date(visaStart);
-                const endDate = new Date(visaEnd);
-
-                periodStart.textContent = startDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
-                periodEnd.textContent = endDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
-                periodNote.textContent = currentLanguage === 'de'
-                    ? 'Alle Aufenthalte müssen innerhalb dieses Visum-Zeitraums liegen'
-                    : 'All stays must be within this visa period';
+            if (now >= marchLastSunday && now < octoberLastSunday) {
+                // Sommerzeit (MESZ = UTC+2)
+                return new Date(utcTime + (2 * 3600000));
             } else {
-                periodStart.textContent = '-';
-                periodEnd.textContent = '-';
-                periodNote.textContent = translations[currentLanguage].calculationPeriodVisa;
-            }
-        }
-    }
-
-    function toggleMode() {
-        const modeSwitch = document.getElementById('modeSwitch');
-        const schengenMode = document.getElementById('schengenMode');
-        const visaMode = document.getElementById('visaMode');
-        const results = document.getElementById('results');
-
-        visibleEntries = 1;
-        visibleExits = 1;
-
-        if (modeSwitch.checked) {
-            currentMode = 'visa';
-            schengenMode.classList.remove('active');
-            visaMode.classList.add('active');
-        } else {
-            currentMode = 'schengen';
-            schengenMode.classList.add('active');
-            visaMode.classList.remove('active');
-        }
-
-        results.classList.add('hidden');
-        generateStayEntries();
-        updatePeriodDisplay();
-    }
-
-    function saveCurrentInputs() {
-        const savedData = {};
-
-        for (let i = 1; i <= 10; i++) {
-            const entryInput = document.getElementById(`${currentMode}Entry${i}`);
-            if (entryInput) {
-                savedData[`${currentMode}Entry${i}`] = entryInput.value;
+                // Winterzeit (MEZ = UTC+1)
+                return mezTime;
             }
         }
 
-        for (let i = 1; i <= 10; i++) {
-            const exitInput = document.getElementById(`${currentMode}Exit${i}`);
-            if (exitInput) {
-                savedData[`${currentMode}Exit${i}`] = exitInput.value;
+        // Funktion für MEZ-Datum ohne Zeitanteil (nur Jahr-Monat-Tag)
+        function getTodayMEZDateOnly() {
+            const mezToday = getTodayMEZ();
+            return new Date(mezToday.getFullYear(), mezToday.getMonth(), mezToday.getDate());
+        }
+
+        function getControlDate() {
+            const input = document.getElementById('controlDateInput');
+            if (input && input.value) {
+                const d = new Date(input.value);
+                return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            }
+            return getTodayMEZDateOnly();
+        }
+
+        const translations = {
+            de: {
+                headerTitle: '🇪🇺 Schengen & Visa Aufenthaltsrechner',
+                headerSubtitle: 'Berechnen Sie Ihre verbleibenden Aufenthaltstage',
+                languageLabel: 'Sprache:',
+                mode1Label: 'Schengen 90/180',
+                mode2Label: 'Visum-Prüfung',
+                schengenRuleTitle: 'Schengen-Regel (90/180 Tage)',
+                schengenRuleText: 'Als Tourist dürfen Sie sich maximal <strong>90 Tage</strong> innerhalb von <strong>180 aufeinanderfolgenden Tagen</strong> im Schengen-Raum aufhalten. Geben Sie Ihre Ein- und Ausreisedaten ein, um Ihre verbleibenden Tage zu berechnen.',
+                visaRuleTitle: 'Visum-Zeitraum Prüfung',
+                visaRuleText: 'Geben Sie Ihre Visum-Details ein und prüfen Sie, ob Ihre geplanten Aufenthalte innerhalb der Visum-Beschränkungen liegen.',
+                visaConfigTitle: '🛂 Visum-Konfiguration',
+                visaStartLabel: 'Visum gültig ab',
+                visaEndLabel: 'Visum gültig bis',
+                allowedDaysLabel: 'Erlaubte Aufenthaltstage',
+                allowedEntriesLabel: 'Erlaubte Einreisen',
+                schengenCalculateBtn: '📊 Aufenthaltstage berechnen',
+                visaCalculateBtn: '🔍 Visum-Compliance prüfen',
+                printBtnText: 'Drucken/Exportieren',
+                addEntryBtn: '+ Einreise hinzufügen',
+                addExitBtn: '+ Ausreise hinzufügen',
+                entryHeading: 'Einreisen',
+                exitHeading: 'Ausreisen',
+                entryLabel: 'Einreise',
+                exitLabel: 'Ausreise',
+                calculatedStaysTitle: 'Berechnete Aufenthaltszeiten',
+                emptyStaysMessage: 'Geben Sie Ein- und Ausreisedaten ein, um Aufenthaltszeiten zu berechnen.',
+                stayOverviewTitle: 'Eingegebene Aufenthalte',
+                calculationPeriodTitle: 'Aktueller Berechnungszeitraum',
+                calculationPeriodSchengen: 'Aufenthalte in diesem 180-Tage-Zeitraum werden berücksichtigt',
+                calculationPeriodVisa: 'Bitte Visum-Daten eingeben um Zeitraum anzuzeigen',
+                today: 'Heute',
+                todayMEZ: 'Heute MEZ',
+                resultsTitle: '🔍 Berechnungsergebnis',
+                stayLabel: 'Aufenthalt',
+                arrivalLabel: 'Ankunftsdatum',
+                departureLabel: 'Abreisedatum',
+                daysText: 'Tag',
+                daysTextPlural: 'Tage',
+                usedDaysLabel: '📊 Genutzte Aufenthaltstage (180-Tage-Zeitraum)',
+                usedDaysVisaLabel: '📊 Genutzte Aufenthaltstage (Visum-Zeitraum)',
+                remainingDaysLabel: '⏰ Verbleibende Aufenthaltstage',
+                allowedStayUntilLabel: '📆 Erlaubter Aufenthalt bis',
+                statusLabel: '⚖️ Aktueller Status',
+                calculationDateLabel: '📅 Berechnungsstichtag',
+                entriesUsedLabel: '🚪 Verwendete Einreisen',
+                statusLegal: '✅ Legal',
+                statusExhausted: '⚠️ Ausgeschöpft (0 Tage übrig)',
+                statusViolation: '❌ Überschreitung',
+                statusVisaValid: '✅ Visum-konform',
+                statusVisaViolation: '❌ Visum-Verletzung',
+                nextEntryText: '🚪 Nächstmögliche legale Einreise:',
+                errorEndDate: '⚠️ Enddatum muss nach Startdatum liegen',
+                errorNoStays: 'Bitte geben Sie mindestens einen Aufenthaltszeitraum ein.',
+                errorVisaConfig: 'Bitte füllen Sie alle Visum-Felder aus.',
+                errorVisaDates: 'Visum-Enddatum muss nach Startdatum liegen.',
+                errorStayOutsideVisa: '⚠️ Aufenthalt außerhalb des Visum-Zeitraums',
+                tooManyEntries: 'Zu viele Einreisen',
+                daysOverLimit: 'Tage überschritten',
+                violationsTitle: 'Verstöße',
+                remaining: 'übrig',
+                placeholder90: 'z.B. 90',
+                singleEntry: '1 (Einmalig)',
+                doubleEntry: '2 (Zweimalig)',
+                multiEntry: 'MULTI (Mehrfach)',
+                visaPeriodLabel: 'Visum-Zeitraum',
+                createdOn: 'Erstellt am',
+                pageInfo: 'Seite 1 von 1',
+                createdWith: 'Erstellt mit: Schengen Aufenthaltsrechner',
+                disclaimer: 'Hinweis: Diese Berechnung dient zur Orientierung. Bei rechtlichen Fragen wenden Sie sich an die zuständigen Behörden.',
+                footerTitle: '🛂 Aufenthaltsrechner für Schengen | 90 Tage in 180 Tagen + Visumsprüfung',
+                footerIntro: 'Mit unserem kostenlosen Aufenthaltsrechner kannst du ganz einfach prüfen, wie viele Aufenthaltstage im Schengen-Raum du bereits verbraucht hast, wie viele Tage dir noch bleiben – und ob du aktuell legal eingereist bist.',
+                footerFeatures: 'Die Berechnung berücksichtigt sowohl:',
+                footerFeature1: 'die klassische 90/180-Tage-Regel (für visumfreies Reisen)',
+                footerFeature2: 'als auch Aufenthaltszeiten innerhalb eines Schengen-Visums (z. B. Typ-C-Visum mit begrenztem Gültigkeitszeitraum)',
+                footerWhatTitle: '🔍 Was macht unser Aufenthaltsrechner?',
+                footerWhat1: 'Berechnet automatisch, wie viele Tage du im aktuellen 180-Tage-Zeitraum verbracht hast',
+                footerWhat2: 'Zeigt, wie viele Aufenthaltstage noch übrig sind',
+                footerWhat3: 'Prüft bei Bedarf auch, ob du dein Schengen-Visum korrekt nutzt',
+                footerWhat4: 'Gibt an, ab wann eine erneute legale Einreise möglich ist',
+                footerWhatNote: 'Du gibst einfach deine einzelnen Ein- und Ausreisedaten ein – alles andere übernimmt das Tool.',
+                footerWhoTitle: '👤 Für wen ist der Rechner nützlich?',
+                footerWho1: 'Touristen mit visumfreier Einreise (z. B. aus UK, USA, Kanada, Australien)',
+                footerWho2: 'Visa-Inhaber, die ihre 90 Tage im Visumszeitraum einhalten müssen',
+                footerWho3: 'Digitale Nomaden, Geschäftsreisende, Au-Pairs',
+                footerWho4: 'Alle, die rechtssicher im Schengen-Raum reisen möchten',
+                footerBenefit1: '✔ Die Berechnung erfolgt direkt im Browser – keine Datenspeicherung, keine Anmeldung nötig.',
+                footerBenefit2: '✔ Ideal zur Planung, Dokumentation oder zum Nachweis gegenüber Behörden.',
+                controlDateLabel: 'Kontrolldatum (Berechnung ab):',
+                incompleteDataWarning: 'Die Eingaben enthalten unvollständige Aufenthalte (fehlende Ein- oder Ausreisedaten). Fehlende Ausreisen werden bis zur nächsten Einreise bzw. bis zum Kontrolldatum angenommen.'
+            },
+            en: {
+                headerTitle: '🇪🇺 Schengen & Visa Stay Calculator',
+                headerSubtitle: 'Calculate your remaining stay days',
+                languageLabel: 'Language:',
+                mode1Label: 'Schengen 90/180',
+                mode2Label: 'Visa Check',
+                schengenRuleTitle: 'Schengen Rule (90/180 days)',
+                schengenRuleText: 'As a tourist, you may stay a maximum of <strong>90 days</strong> within <strong>180 consecutive days</strong> in the Schengen area. Enter your entry and exit dates to calculate your remaining days.',
+                visaRuleTitle: 'Visa Period Check',
+                visaRuleText: 'Enter your visa details and check if your planned stays are within the visa restrictions.',
+                visaConfigTitle: '🛂 Visa Configuration',
+                visaStartLabel: 'Visa valid from',
+                visaEndLabel: 'Visa valid until',
+                allowedDaysLabel: 'Allowed stay days',
+                allowedEntriesLabel: 'Allowed entries',
+                schengenCalculateBtn: '📊 Calculate stay days',
+                visaCalculateBtn: '🔍 Check visa compliance',
+                printBtnText: 'Print/Export',
+                addEntryBtn: '+ Add entry',
+                addExitBtn: '+ Add exit',
+                entryHeading: 'Entries',
+                exitHeading: 'Exits',
+                entryLabel: 'Entry',
+                exitLabel: 'Exit',
+                calculatedStaysTitle: 'Calculated stay periods',
+                emptyStaysMessage: 'Enter entry and exit dates to calculate stay periods.',
+                stayOverviewTitle: 'Entered stays',
+                calculationPeriodTitle: 'Current calculation period',
+                calculationPeriodSchengen: 'Stays within this 180-day period are considered',
+                calculationPeriodVisa: 'Please enter visa data to display period',
+                today: 'Today',
+                todayMEZ: 'Today CET',
+                resultsTitle: '🔍 Calculation Result',
+                stayLabel: 'Stay',
+                arrivalLabel: 'Arrival date',
+                departureLabel: 'Departure date',
+                daysText: 'day',
+                daysTextPlural: 'days',
+                usedDaysLabel: '📊 Used stay days (180-day period)',
+                usedDaysVisaLabel: '📊 Used stay days (visa period)',
+                remainingDaysLabel: '⏰ Remaining stay days',
+                allowedStayUntilLabel: '📆 Allowed stay until',
+                statusLabel: '⚖️ Current status',
+                calculationDateLabel: '📅 Calculation date',
+                entriesUsedLabel: '🚪 Entries used',
+                statusLegal: '✅ Legal',
+                statusExhausted: '⚠️ Exhausted (0 days left)',
+                statusViolation: '❌ Violation',
+                statusVisaValid: '✅ Visa compliant',
+                statusVisaViolation: '❌ Visa violation',
+                nextEntryText: '🚪 Next possible legal entry:',
+                errorEndDate: '⚠️ End date must be after start date',
+                errorNoStays: 'Please enter at least one stay period.',
+                errorVisaConfig: 'Please fill in all visa fields.',
+                errorVisaDates: 'Visa end date must be after start date.',
+                errorStayOutsideVisa: '⚠️ Stay outside visa period',
+                tooManyEntries: 'Too many entries',
+                daysOverLimit: 'Days exceeded',
+                violationsTitle: 'Violations',
+                remaining: 'left',
+                placeholder90: 'e.g. 90',
+                singleEntry: '1 (Single)',
+                doubleEntry: '2 (Double)',
+                multiEntry: 'MULTI (Multiple)',
+                visaPeriodLabel: 'Visa Period',
+                createdOn: 'Created on',
+                pageInfo: 'Page 1 of 1',
+                createdWith: 'Created with: Schengen Stay Calculator',
+                disclaimer: 'Note: This calculation is for guidance only. For legal questions, contact the relevant authorities.',
+                footerTitle: '🛂 Schengen Stay Calculator | 90 days in 180 days + Visa Check',
+                footerIntro: 'With our free stay calculator, you can easily check how many stay days in the Schengen area you have already used, how many days you have left – and whether you are currently legally entered.',
+                footerFeatures: 'The calculation considers both:',
+                footerFeature1: 'the classic 90/180-day rule (for visa-free travel)',
+                footerFeature2: 'as well as stays within a Schengen visa (e.g. Type C visa with limited validity period)',
+                footerWhatTitle: '🔍 What does our stay calculator do?',
+                footerWhat1: 'Automatically calculates how many days you have spent in the current 180-day period',
+                footerWhat2: 'Shows how many stay days are left',
+                footerWhat3: 'Also checks whether you are using your Schengen visa correctly if needed',
+                footerWhat4: 'Indicates when a legal re-entry is possible again',
+                footerWhatNote: 'You simply enter your individual entry and exit dates – the tool takes care of everything else.',
+                footerWhoTitle: '👤 Who is the calculator useful for?',
+                footerWho1: 'Tourists with visa-free entry (e.g. from UK, USA, Canada, Australia)',
+                footerWho2: 'Visa holders who must comply with their 90 days within the visa period',
+                footerWho3: 'Digital nomads, business travelers, au pairs',
+                footerWho4: 'Anyone who wants to travel legally in the Schengen area',
+                footerBenefit1: '✔ The calculation is done directly in the browser – no data storage, no registration required.',
+                footerBenefit2: '✔ Ideal for planning, documentation or proof to authorities.',
+                controlDateLabel: 'Control date (calculation from):',
+                incompleteDataWarning: 'Your input contains incomplete stays (missing entry or exit dates). Missing exits are assumed to last until the next entry or the control date.'
+            }
+        };
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+
+            document.querySelectorAll('.language-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            for (const [key, value] of Object.entries(translations[lang])) {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.innerHTML = value;
+                }
+            }
+
+            const allowedDaysInput = document.getElementById('allowedDays');
+            if (allowedDaysInput) {
+                allowedDaysInput.placeholder = translations[lang].placeholder90;
+            }
+
+            const singleEntry = document.getElementById('singleEntry');
+            const doubleEntry = document.getElementById('doubleEntry');
+            const multiEntry = document.getElementById('multiEntry');
+
+            if (singleEntry) singleEntry.textContent = translations[lang].singleEntry;
+            if (doubleEntry) doubleEntry.textContent = translations[lang].doubleEntry;
+            if (multiEntry) multiEntry.textContent = translations[lang].multiEntry;
+
+            generateStayEntries();
+            updatePeriodDisplay();
+        }
+
+        function updatePeriodDisplay() {
+            const periodStart = document.getElementById('periodStart');
+            const periodEnd = document.getElementById('periodEnd');
+            const periodNote = document.getElementById('periodNote');
+            const controlInput = document.getElementById('controlDateInput');
+
+            if (currentMode === 'schengen') {
+                const controlDate = getControlDate();
+                const period180Start = new Date(controlDate);
+                period180Start.setDate(period180Start.getDate() - 180);
+
+                const locale = currentLanguage === 'de' ? 'de-DE' : 'en-GB';
+                const today = getTodayMEZDateOnly();
+
+                periodStart.textContent = period180Start.toLocaleDateString(locale);
+
+                let endText = controlDate.toLocaleDateString(locale);
+                const controlIsToday = controlInput && controlInput.value &&
+                    new Date(controlInput.value).getTime() === today.getTime();
+
+                if (!controlInput.value || controlIsToday) {
+                    endText += ` (${translations[currentLanguage].todayMEZ})`;
+                }
+
+                periodEnd.textContent = endText;
+                periodNote.textContent = translations[currentLanguage].calculationPeriodSchengen;
+            } else {
+                const visaStart = document.getElementById('visaStart')?.value;
+                const visaEnd = document.getElementById('visaEnd')?.value;
+
+                if (visaStart && visaEnd) {
+                    const startDate = new Date(visaStart);
+                    const endDate = new Date(visaEnd);
+
+                    periodStart.textContent = startDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
+                    periodEnd.textContent = endDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
+                    periodNote.textContent = currentLanguage === 'de'
+                        ? 'Alle Aufenthalte müssen innerhalb dieses Visum-Zeitraums liegen'
+                        : 'All stays must be within this visa period';
+                } else {
+                    periodStart.textContent = '-';
+                    periodEnd.textContent = '-';
+                    periodNote.textContent = translations[currentLanguage].calculationPeriodVisa;
+                }
             }
         }
 
-        return savedData;
-    }
+        function toggleMode() {
+            const modeSwitch = document.getElementById('modeSwitch');
+            const schengenMode = document.getElementById('schengenMode');
+            const visaMode = document.getElementById('visaMode');
+            const results = document.getElementById('results');
 
-    function restoreInputs(savedData) {
-        for (const [id, value] of Object.entries(savedData)) {
-            const input = document.getElementById(id);
-            if (input && value) {
-                input.value = value;
-            }
-        }
-        calculateStayPeriods();
-    }
+            visibleEntries = 1;
+            visibleExits = 1;
 
-    // NEUE LOGIK: berechnet Aufenthalte + erkennt unvollständige Zeiträume
-    function calculateStayPeriods() {
-        const entries = [];
-        const exits = [];
-    
-        // Collect entry dates
-        for (let i = 1; i <= 10; i++) {
-            const entryInput = document.getElementById(`${currentMode}Entry${i}`);
-            if (entryInput && entryInput.value) {
-                entries.push({
-                    date: new Date(entryInput.value),
-                    index: i
-                });
+            if (modeSwitch.checked) {
+                currentMode = 'visa';
+                schengenMode.classList.remove('active');
+                visaMode.classList.add('active');
+            } else {
+                currentMode = 'schengen';
+                schengenMode.classList.add('active');
+                visaMode.classList.remove('active');
             }
+
+            results.classList.add('hidden');
+            generateStayEntries();
+            updatePeriodDisplay();
         }
-    
-        // Collect exit dates
-        for (let i = 1; i <= 10; i++) {
-            const exitInput = document.getElementById(`${currentMode}Exit${i}`);
-            if (exitInput && exitInput.value) {
-                exits.push({
-                    date: new Date(exitInput.value),
-                    index: i
-                });
+
+        function saveCurrentInputs() {
+            const savedData = {};
+
+            for (let i = 1; i <= 10; i++) {
+                const entryInput = document.getElementById(`${currentMode}Entry${i}`);
+                if (entryInput) {
+                    savedData[`${currentMode}Entry${i}`] = entryInput.value;
+                }
             }
+
+            for (let i = 1; i <= 10; i++) {
+                const exitInput = document.getElementById(`${currentMode}Exit${i}`);
+                if (exitInput) {
+                    savedData[`${currentMode}Exit${i}`] = exitInput.value;
+                }
+            }
+
+            return savedData;
         }
-    
-        // Sort by date
-        entries.sort((a, b) => a.date.getTime() - b.date.getTime());
-        exits.sort((a, b) => a.date.getTime() - b.date.getTime());
-    
-        const stayPeriods = [];
-        let hasIncomplete = false;
-    
-        if (entries.length === 0) {
-            // No entries but maybe exits -> mark as incomplete but continue
-            if (exits.length > 0) {
+
+        function restoreInputs(savedData) {
+            for (const [id, value] of Object.entries(savedData)) {
+                const input = document.getElementById(id);
+                if (input && value) {
+                    input.value = value;
+                }
+            }
+            calculateStayPeriods();
+        }
+
+        
+        
+        function calculateStayPeriods() {
+            const entries = [];
+            const exits = [];
+
+            for (let i = 1; i <= 10; i++) {
+                const entryInput = document.getElementById(`${currentMode}Entry${i}`);
+                if (entryInput && entryInput.value) {
+                    const d = new Date(entryInput.value);
+                    entries.push({
+                        date: new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+                        index: i
+                    });
+                }
+            }
+
+            for (let i = 1; i <= 10; i++) {
+                const exitInput = document.getElementById(`${currentMode}Exit${i}`);
+                if (exitInput && exitInput.value) {
+                    const d = new Date(exitInput.value);
+                    exits.push({
+                        date: new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+                        index: i
+                    });
+                }
+            }
+
+            // Sort chronologisch
+            entries.sort((a, b) => a.date.getTime() - b.date.getTime());
+            exits.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+            const stayPeriods = [];
+            let hasIncomplete = false;
+
+            if (entries.length === 0 && exits.length === 0) {
+                displayCalculatedStays(stayPeriods, hasIncomplete);
+                return { stayPeriods, hasIncomplete };
+            }
+
+            // Hilfsstruktur für zeitliche Reihenfolge aller Events (Ein- und Ausreisen)
+            const events = [];
+            const exitEventIndex = {};
+            entries.forEach((e, idx) => {
+                events.push({ type: 'entry', date: e.date, entryIndex: idx });
+            });
+            exits.forEach((e, idx) => {
+                events.push({ type: 'exit', date: e.date, exitIndex: idx });
+            });
+            events.sort((a, b) => {
+                const diff = a.date.getTime() - b.date.getTime();
+                if (diff !== 0) return diff;
+                // Bei gleichem Datum zuerst Einreise, dann Ausreise
+                if (a.type === b.type) return 0;
+                return a.type === 'entry' ? -1 : 1;
+            });
+            events.forEach((ev, i) => {
+                if (ev.type === 'exit') {
+                    exitEventIndex[ev.exitIndex] = i;
+                }
+            });
+
+            const usedExits = new Set();
+
+            // 1) Aufenthalte aus Einreisen ableiten
+            for (let i = 0; i < entries.length; i++) {
+                const entry = entries[i];
+                const nextEntryDate = i + 1 < entries.length ? entries[i + 1].date : null;
+
+                let matchedExitIndex = null;
+                let matchedExitDate = null;
+
+                // Suche nach der frühesten noch nicht verwendeten Ausreise, die zur Einreise passt
+                for (let j = 0; j < exits.length; j++) {
+                    if (usedExits.has(j)) continue;
+                    const exit = exits[j];
+
+                    if (exit.date < entry.date) {
+                        // Diese Ausreise gehört nicht zu dieser Einreise, wird später als "Ausreise ohne Einreise" behandelt
+                        continue;
+                    }
+
+                    if (nextEntryDate && exit.date > nextEntryDate) {
+                        // Diese Ausreise liegt bereits nach der nächsten Einreise und kann dieser nicht mehr zugeordnet werden
+                        break;
+                    }
+
+                    matchedExitIndex = j;
+                    matchedExitDate = exit.date;
+                    break;
+                }
+
+                let entryDateUsed = entry.date;
+                let exitDateUsed = null;
+                let estimated = false;
+
+                if (matchedExitIndex !== null) {
+                    exitDateUsed = matchedExitDate;
+                    usedExits.add(matchedExitIndex);
+                } else {
+                    // Keine passende Ausreise -> unvollständiger Zeitraum (Einreise ohne Ausreise)
+                    hasIncomplete = true;
+                    const controlDate = getControlDate();
+                    if (nextEntryDate && nextEntryDate <= controlDate) {
+                        exitDateUsed = nextEntryDate;
+                    } else {
+                        const lastDate = nextEntryDate && nextEntryDate < controlDate ? nextEntryDate : controlDate;
+                        exitDateUsed = lastDate;
+                    }
+                    estimated = true;
+                }
+
+                if (exitDateUsed && exitDateUsed >= entryDateUsed) {
+                    const msPerDay = 1000 * 60 * 60 * 24;
+                    const days = Math.round((exitDateUsed.getTime() - entryDateUsed.getTime()) / msPerDay) + 1;
+
+                    stayPeriods.push({
+                        number: stayPeriods.length + 1,
+                        entryDate: entryDateUsed,
+                        exitDate: exitDateUsed,
+                        days: days,
+                        estimated: estimated
+                    });
+                }
+            }
+
+            // 2) Aufenthalte aus Ausreisen ohne passende Einreise ableiten
+            for (let j = 0; j < exits.length; j++) {
+                if (usedExits.has(j)) continue; // bereits einer Einreise zugeordnet
+
                 hasIncomplete = true;
+                const exit = exits[j];
+                const eventIdx = exitEventIndex[j];
+                let syntheticEntryDate = exit.date; // Fallback: gleicher Tag
+
+                if (typeof eventIdx === 'number' && eventIdx > 0) {
+                    // Vorheriges Ereignis (Einreise oder Ausreise) als "Start" verwenden
+                    const prevEvent = events[eventIdx - 1];
+                    if (prevEvent && prevEvent.date <= exit.date) {
+                        syntheticEntryDate = prevEvent.date;
+                    }
+                }
+
+                if (syntheticEntryDate <= exit.date) {
+                    const msPerDay = 1000 * 60 * 60 * 24;
+                    const days = Math.round((exit.date.getTime() - syntheticEntryDate.getTime()) / msPerDay) + 1;
+
+                    stayPeriods.push({
+                        number: stayPeriods.length + 1,
+                        entryDate: syntheticEntryDate,
+                        exitDate: exit.date,
+                        days: days,
+                        estimated: true
+                    });
+                }
             }
-            displayCalculatedStays(stayPeriods);
+
+            // Aufenthalte chronologisch sortieren und Nummern neu vergeben
+            stayPeriods.sort((a, b) => a.entryDate.getTime() - b.entryDate.getTime());
+            stayPeriods.forEach((stay, idx) => {
+                stay.number = idx + 1;
+            });
+
+            displayCalculatedStays(stayPeriods, hasIncomplete);
             return { stayPeriods, hasIncomplete };
         }
-    
-        let exitPointer = 0;
-        const controlDate = getControlDate();
-    
-        for (let i = 0; i < entries.length; i++) {
-            const entry = entries[i];
-            const nextEntryDate = (i + 1 < entries.length) ? entries[i + 1].date : null;
-            let exitDate = null;
-            let usedRealExit = false;
-    
-            // Skip exits that are before this entry (unmatched exits)
-            while (exitPointer < exits.length && exits[exitPointer].date < entry.date) {
-                hasIncomplete = true;
-                exitPointer++;
+\n        function displayCalculatedStaysfunction displayCalculatedStays(stayPeriods) {
+            const containerId = currentMode === 'schengen' ? 'schengenCalculatedStays' : 'visaCalculatedStays';
+            const container = document.getElementById(containerId);
+
+            if (!container) return;
+
+            if (stayPeriods.length === 0) {
+                container.innerHTML = `
+                    <div class="calculated-stays-empty">
+                        <p>${translations[currentLanguage].emptyStaysMessage}</p>
+                    </div>
+                `;
+                return;
             }
-    
-            // Try to match next exit on or after entry date
-            // UND sie darf nicht NACH der nächsten Einreise liegen
-            if (
-                exitPointer < exits.length &&
-                exits[exitPointer].date >= entry.date &&
-                (!nextEntryDate || exits[exitPointer].date <= nextEntryDate)
-            ) {
-                exitDate = exits[exitPointer].date;
-                usedRealExit = true;
-                exitPointer++;
-            } else {
-                // Keine passende Ausreise -> schätzen
-                hasIncomplete = true;
-    
-                if (nextEntryDate) {
-                    // Maximal bis zum Tag der nächsten Einreise
-                    exitDate = new Date(nextEntryDate);
-                } else {
-                    // Letzte Einreise ohne Ausreise -> Kontrolldatum
-                    exitDate = new Date(controlDate);
-                }
-            }
-    
-            // Safety: niemals negative Dauer
-            if (exitDate < entry.date) {
-                exitDate = new Date(entry.date);
-            }
-    
-            const msPerDay = 1000 * 3600 * 24;
-            const timeDiff = exitDate.getTime() - entry.date.getTime();
-            const days = Math.floor(timeDiff / msPerDay) + 1; // Einreise- UND Ausreisetag enthalten
-    
-            stayPeriods.push({
-                number: stayPeriods.length + 1,
-                entryDate: entry.date,
-                exitDate: exitDate,
-                days: days,
-                estimated: !usedRealExit
-            });
-        }
-    
-        // Leftover exits that were never matched to an entry
-        if (exitPointer < exits.length) {
-            hasIncomplete = true;
-        }
-    
-        displayCalculatedStays(stayPeriods);
-        return { stayPeriods, hasIncomplete };
-    }
 
-
-    function displayCalculatedStays(stayPeriods) {
-        const containerId = currentMode === 'schengen' ? 'schengenCalculatedStays' : 'visaCalculatedStays';
-        const container = document.getElementById(containerId);
-
-        if (!container) return;
-
-        if (stayPeriods.length === 0) {
-            container.innerHTML = `
-                <div class="calculated-stays-empty">
-                    <p>${translations[currentLanguage].emptyStaysMessage}</p>
-                </div>
+            let html = `
+                <div class="calculated-stays">
+                    <h3>${translations[currentLanguage].calculatedStaysTitle}</h3>
+                    <div class="stays-list">
             `;
-            return;
-        }
 
-        let html = `
-            <div class="calculated-stays">
-                <h3>${translations[currentLanguage].calculatedStaysTitle}</h3>
-                <div class="stays-list">
-        `;
-
-        stayPeriods.forEach(stay => {
-            html += `
-                <div class="calculated-stay-item">
-                    <div class="stay-number">${stay.number}</div>
-                    <div class="stay-details">
-                        <div class="stay-period">
-                            ${stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')} → 
-                            ${stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}
+            stayPeriods.forEach(stay => {
+                html += `
+                    <div class="calculated-stay-item">
+                        <div class="stay-number">${stay.number}</div>
+                        <div class="stay-details">
+                            <div class="stay-period">
+                                ${stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')} → 
+                                ${stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}
+                            </div>
+                            <div class="stay-duration">${stay.days} ${stay.days === 1 ? translations[currentLanguage].daysText : translations[currentLanguage].daysTextPlural}</div>
                         </div>
-                        <div class="stay-duration">${stay.days} ${stay.days === 1 ? translations[currentLanguage].daysText : translations[currentLanguage].daysTextPlural}</div>
+                    </div>
+                `;
+            });
+
+            html += `
                     </div>
                 </div>
             `;
-        });
 
-        html += `
-                </div>
-            </div>
-        `;
-
-        container.innerHTML = html;
-    }
-
-    function generateStayEntries() {
-        const containerId = currentMode === 'schengen' ? 'schengenStayEntries' : 'visaStayEntries';
-        const container = document.getElementById(containerId);
-
-        const savedData = saveCurrentInputs();
-
-        container.innerHTML = '';
-
-        let entriesHTML = `
-            <div class="entries-section">
-                <h3>🛬 ${translations[currentLanguage].entryHeading}</h3>
-                <div class="entries-grid">
-        `;
-
-        for (let i = 1; i <= visibleEntries; i++) {
-            const deleteButton = i > 1 ? `
-                <button type="button" class="delete-entry-btn" onclick="removeEntry(${i})" title="${translations[currentLanguage].entryLabel} entfernen">
-                    🗑️
-                </button>
-            ` : '';
-
-            entriesHTML += `
-                <div class="entry-item">
-                    <div class="entry-header">
-                        <label>${translations[currentLanguage].entryLabel} ${i}</label>
-                        ${deleteButton}
-                    </div>
-                    <input type="date" id="${currentMode}Entry${i}" onchange="calculateStayPeriods()">
-                </div>
-            `;
+            container.innerHTML = html;
         }
 
-        if (visibleEntries < 10) {
-            entriesHTML += `
-                <div class="add-entry-section">
-                    <button type="button" class="add-entry-btn" onclick="addEntry()">
-                        ${translations[currentLanguage].addEntryBtn}
-                    </button>
-                </div>
-            `;
-        }
+        function generateStayEntries() {
+            const containerId = currentMode === 'schengen' ? 'schengenStayEntries' : 'visaStayEntries';
+            const container = document.getElementById(containerId);
 
-        entriesHTML += `
-                </div>
-            </div>
-        `;
-
-        let exitsHTML = `
-            <div class="exits-section">
-                <h3>🛫 ${translations[currentLanguage].exitHeading}</h3>
-                <div class="exits-grid">
-        `;
-
-        for (let i = 1; i <= visibleExits; i++) {
-            const deleteButton = i > 1 ? `
-                <button type="button" class="delete-exit-btn" onclick="removeExit(${i})" title="${translations[currentLanguage].exitLabel} entfernen">
-                    🗑️
-                </button>
-            ` : '';
-
-            exitsHTML += `
-                <div class="exit-item">
-                    <div class="exit-header">
-                        <label>${translations[currentLanguage].exitLabel} ${i}</label>
-                        ${deleteButton}
-                    </div>
-                    <input type="date" id="${currentMode}Exit${i}" onchange="calculateStayPeriods()">
-                </div>
-            `;
-        }
-
-        if (visibleExits < 10) {
-            exitsHTML += `
-                <div class="add-exit-section">
-                    <button type="button" class="add-exit-btn" onclick="addExit()">
-                        ${translations[currentLanguage].addExitBtn}
-                    </button>
-                </div>
-            `;
-        }
-
-        exitsHTML += `
-                </div>
-            </div>
-        `;
-
-        const calculatedStaysHTML = `
-            <div id="${currentMode}CalculatedStays" class="calculated-stays-container">
-            </div>
-        `;
-
-        container.innerHTML = entriesHTML + exitsHTML + calculatedStaysHTML;
-
-        setTimeout(() => {
-            restoreInputs(savedData);
-        }, 10);
-    }
-
-    function addEntry() {
-        if (visibleEntries < 10) {
-            visibleEntries++;
-            generateStayEntries();
-        }
-    }
-
-    function addExit() {
-        if (visibleExits < 10) {
-            visibleExits++;
-            generateStayEntries();
-        }
-    }
-
-    function removeEntry(entryIndex) {
-        if (visibleEntries > 1 && entryIndex > 1) {
             const savedData = saveCurrentInputs();
 
-            delete savedData[`${currentMode}Entry${entryIndex}`];
+            container.innerHTML = '';
 
-            const adjustedData = {};
-            for (const [key, value] of Object.entries(savedData)) {
-                const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
-                if (match) {
-                    const mode = match[1];
-                    const type = match[2];
-                    const index = parseInt(match[3]);
+            let entriesHTML = `
+                <div class="entries-section">
+                    <h3>🛬 ${translations[currentLanguage].entryHeading}</h3>
+                    <div class="entries-grid">
+            `;
 
-                    if (type === 'Entry') {
-                        if (index < entryIndex) {
-                            adjustedData[key] = value;
-                        } else if (index > entryIndex) {
-                            const newKey = `${mode}${type}${index - 1}`;
-                            adjustedData[newKey] = value;
-                        }
-                    } else {
-                        adjustedData[key] = value;
-                    }
-                }
+            for (let i = 1; i <= visibleEntries; i++) {
+                const deleteButton = i > 1 ? `
+                    <button type="button" class="delete-entry-btn" onclick="removeEntry(${i})" title="${translations[currentLanguage].entryLabel} entfernen">
+                        🗑️
+                    </button>
+                ` : '';
+
+                entriesHTML += `
+                    <div class="entry-item">
+                        <div class="entry-header">
+                            <label>${translations[currentLanguage].entryLabel} ${i}</label>
+                            ${deleteButton}
+                        </div>
+                        <input type="date" id="${currentMode}Entry${i}" onchange="calculateStayPeriods()">
+                    </div>
+                `;
             }
 
-            visibleEntries--;
-            generateStayEntries();
-
-            setTimeout(() => {
-                restoreInputs(adjustedData);
-            }, 10);
-        }
-    }
-
-    function removeExit(exitIndex) {
-        if (visibleExits > 1 && exitIndex > 1) {
-            const savedData = saveCurrentInputs();
-
-            delete savedData[`${currentMode}Exit${exitIndex}`];
-
-            const adjustedData = {};
-            for (const [key, value] of Object.entries(savedData)) {
-                const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
-                if (match) {
-                    const mode = match[1];
-                    const type = match[2];
-                    const index = parseInt(match[3]);
-
-                    if (type === 'Exit') {
-                        if (index < exitIndex) {
-                            adjustedData[key] = value;
-                        } else if (index > exitIndex) {
-                            const newKey = `${mode}${type}${index - 1}`;
-                            adjustedData[newKey] = value;
-                        }
-                    } else {
-                        adjustedData[key] = value;
-                    }
-                }
+            if (visibleEntries < 10) {
+                entriesHTML += `
+                    <div class="add-entry-section">
+                        <button type="button" class="add-entry-btn" onclick="addEntry()">
+                            ${translations[currentLanguage].addEntryBtn}
+                        </button>
+                    </div>
+                `;
             }
 
-            visibleExits--;
-            generateStayEntries();
+            entriesHTML += `
+                    </div>
+                </div>
+            `;
+
+            let exitsHTML = `
+                <div class="exits-section">
+                    <h3>🛫 ${translations[currentLanguage].exitHeading}</h3>
+                    <div class="exits-grid">
+            `;
+
+            for (let i = 1; i <= visibleExits; i++) {
+                const deleteButton = i > 1 ? `
+                    <button type="button" class="delete-exit-btn" onclick="removeExit(${i})" title="${translations[currentLanguage].exitLabel} entfernen">
+                        🗑️
+                    </button>
+                ` : '';
+
+                exitsHTML += `
+                    <div class="exit-item">
+                        <div class="exit-header">
+                            <label>${translations[currentLanguage].exitLabel} ${i}</label>
+                            ${deleteButton}
+                        </div>
+                        <input type="date" id="${currentMode}Exit${i}" onchange="calculateStayPeriods()">
+                    </div>
+                `;
+            }
+
+            if (visibleExits < 10) {
+                exitsHTML += `
+                    <div class="add-exit-section">
+                        <button type="button" class="add-exit-btn" onclick="addExit()">
+                            ${translations[currentLanguage].addExitBtn}
+                        </button>
+                    </div>
+                `;
+            }
+
+            exitsHTML += `
+                    </div>
+                </div>
+            `;
+
+            const calculatedStaysHTML = `
+                <div id="${currentMode}CalculatedStays" class="calculated-stays-container">
+                </div>
+            `;
+
+            container.innerHTML = entriesHTML + exitsHTML + calculatedStaysHTML;
 
             setTimeout(() => {
-                restoreInputs(adjustedData);
+                restoreInputs(savedData);
             }, 10);
         }
-    }
 
-    function calculateSchengen() {
-        const { stayPeriods, hasIncomplete } = calculateStayPeriods();
-    
-        const stays = stayPeriods.map(period => ({
-            start: period.entryDate,
-            end: period.exitDate
-        }));
-    
-        stays.sort((a, b) => a.start.getTime() - b.start.getTime());
-    
-        const referenceDate = getControlDate();
-        const period180Start = new Date(referenceDate);
-        period180Start.setDate(period180Start.getDate() - 180);
-    
-        // === NEU: eindeutige Kalendertage im 180-Tage-Zeitraum ===
-        const msPerDay = 1000 * 60 * 60 * 24;
-        const uniqueDays = new Set();
-        const relevantStays = [];
-    
-        stays.forEach(stay => {
-            if (stay.end >= period180Start && stay.start <= referenceDate) {
-                const effectiveStart = stay.start > period180Start ? stay.start : period180Start;
-                const effectiveEnd = stay.end < referenceDate ? stay.end : referenceDate;
-    
-                // Für Anzeige und Logik zur nächsten möglichen Einreise behalten wir die Roh-Information
+        function addEntry() {
+            if (visibleEntries < 10) {
+                visibleEntries++;
+                generateStayEntries();
+            }
+        }
+
+        function addExit() {
+            if (visibleExits < 10) {
+                visibleExits++;
+                generateStayEntries();
+            }
+        }
+
+        function removeEntry(entryIndex) {
+            if (visibleEntries > 1 && entryIndex > 1) {
+                const savedData = saveCurrentInputs();
+
+                delete savedData[`${currentMode}Entry${entryIndex}`];
+
+                const adjustedData = {};
+                for (const [key, value] of Object.entries(savedData)) {
+                    const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
+                    if (match) {
+                        const mode = match[1];
+                        const type = match[2];
+                        const index = parseInt(match[3]);
+
+                        if (type === 'Entry') {
+                            if (index < entryIndex) {
+                                adjustedData[key] = value;
+                            } else if (index > entryIndex) {
+                                const newKey = `${mode}${type}${index - 1}`;
+                                adjustedData[newKey] = value;
+                            }
+                        } else {
+                            adjustedData[key] = value;
+                        }
+                    }
+                }
+
+                visibleEntries--;
+                generateStayEntries();
+
+                setTimeout(() => {
+                    restoreInputs(adjustedData);
+                }, 10);
+            }
+        }
+
+        function removeExit(exitIndex) {
+            if (visibleExits > 1 && exitIndex > 1) {
+                const savedData = saveCurrentInputs();
+
+                delete savedData[`${currentMode}Exit${exitIndex}`];
+
+                const adjustedData = {};
+                for (const [key, value] of Object.entries(savedData)) {
+                    const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
+                    if (match) {
+                        const mode = match[1];
+                        const type = match[2];
+                        const index = parseInt(match[3]);
+
+                        if (type === 'Exit') {
+                            if (index < exitIndex) {
+                                adjustedData[key] = value;
+                            } else if (index > exitIndex) {
+                                const newKey = `${mode}${type}${index - 1}`;
+                                adjustedData[newKey] = value;
+                            }
+                        } else {
+                            adjustedData[key] = value;
+                        }
+                    }
+                }
+
+                visibleExits--;
+                generateStayEntries();
+
+                setTimeout(() => {
+                    restoreInputs(adjustedData);
+                }, 10);
+            }
+        }
+
+        
+        function calculateSchengen() {
+            const { stayPeriods, hasIncomplete } = calculateStayPeriods();
+
+            const stays = stayPeriods.map(period => ({
+                start: period.entryDate,
+                end: period.exitDate
+            }));
+
+            stays.sort((a, b) => a.start.getTime() - b.start.getTime());
+
+            const referenceDate = getControlDate();
+            const period180Start = new Date(referenceDate);
+            period180Start.setDate(period180Start.getDate() - 180);
+
+            const msPerDay = 1000 * 60 * 60 * 24;
+            const uniqueDays = new Set();
+            const relevantStays = [];
+
+            stays.forEach(stay => {
+                if (stay.end >= period180Start && stay.start <= referenceDate) {
+                    const effectiveStart = stay.start > period180Start ? stay.start : period180Start;
+                    const effectiveEnd = stay.end < referenceDate ? stay.end : referenceDate;
+
+                    // Für Anzeige und Logik zur nächsten möglichen Einreise behalten wir die Roh-Information
                     const rawDays = Math.round((effectiveEnd.getTime() - effectiveStart.getTime()) / msPerDay) + 1;
                     relevantStays.push({
                         effectiveStart,
@@ -1709,337 +1769,267 @@
                          d.setDate(d.getDate() + 1)) {
                         uniqueDays.add(d.toISOString().slice(0, 10));
                     }
-                
-                // nur ganze Kalendertage zählen, Ein- und Ausreise inklusive
-                let d = new Date(
-                    effectiveStart.getFullYear(),
-                    effectiveStart.getMonth(),
-                    effectiveStart.getDate()
-                );
-                const endDay = new Date(
-                    effectiveEnd.getFullYear(),
-                    effectiveEnd.getMonth(),
-                    effectiveEnd.getDate()
-                );
-    
-                let daysForThisStay = 0;
-                while (d <= endDay) {
-                    const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
-                    uniqueDays.add(key);
-                    daysForThisStay++; // für Anzeige / Next-Entry-Hilfe
-                    d.setDate(d.getDate() + 1);
                 }
-    
-                relevantStays.push({
-                    ...stay,
-                    effectiveStart,
-                    effectiveEnd,
-                    days: daysForThisStay
-                });
-            }
-        });
-    
-        const daysInPeriod = uniqueDays.size; // keine Doppelzählung mehr
-        const remainingDays = 90 - daysInPeriod;
-        const isLegal = daysInPeriod <= 90;
-    
-        const calculationPeriod = {
-            start: period180Start,
-            end: referenceDate,
-            mode: 'schengen'
-        };
-    
-        let allowedUntil = null;
-        if (remainingDays > 0 && isLegal) {
-            allowedUntil = new Date(referenceDate);
-            allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1);
-        }
-    
-        let nextEntryDate = null;
-        if (!isLegal || remainingDays <= 0) {
-            const sortedStays = relevantStays.sort((a, b) => a.effectiveStart.getTime() - b.effectiveStart.getTime());
-    
-            let cumulativeDays = 0;
-            for (let stay of sortedStays) {
-                cumulativeDays += stay.days;
-                if (cumulativeDays > 90) {
-                    nextEntryDate = new Date(stay.effectiveStart);
-                    nextEntryDate.setDate(nextEntryDate.getDate() + 180);
-                    break;
-                }
-            }
-    
-            if (!nextEntryDate && sortedStays.length > 0) {
-                nextEntryDate = new Date(sortedStays[0].effectiveStart);
-                nextEntryDate.setDate(nextEntryDate.getDate() + 180);
-            }
-        }
-    
-        displaySchengenResults(
-            daysInPeriod,
-            remainingDays,
-            isLegal,
-            allowedUntil,
-            nextEntryDate,
-            referenceDate,
-            calculationPeriod,
-            hasIncomplete
-        );
-    }
+            });
 
-    function calculateVisa() {
-        const visaStart = document.getElementById('visaStart').value;
-        const visaEnd = document.getElementById('visaEnd').value;
-        const allowedDays = parseInt(document.getElementById('allowedDays').value);
-        const allowedEntries = document.getElementById('allowedEntries').value;
-    
-        if (!visaStart || !visaEnd || !allowedDays) {
-            alert(translations[currentLanguage].errorVisaConfig);
-            return;
+            const daysInPeriod = uniqueDays.size;
+            const remainingDays = 90 - daysInPeriod;
+            const isLegal = daysInPeriod <= 90;
+
+            const calculationPeriod = {
+                start: period180Start,
+                end: referenceDate,
+                mode: 'schengen'
+            };
+
+            let allowedUntil = null;
+            if (remainingDays > 0 && isLegal) {
+                allowedUntil = new Date(referenceDate);
+                allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1);
+            }
+
+            let nextEntryDate = null;
+            if (!isLegal || remainingDays <= 0) {
+                const sortedStays = relevantStays.sort((a, b) => a.effectiveStart.getTime() - b.effectiveStart.getTime());
+
+                let cumulativeDays = 0;
+                for (let stay of sortedStays) {
+                    cumulativeDays += stay.days;
+                    if (cumulativeDays > 90) {
+                        nextEntryDate = new Date(stay.effectiveStart);
+                        nextEntryDate.setDate(nextEntryDate.getDate() + 180);
+                        break;
+                    }
+                }
+
+                if (!nextEntryDate && sortedStays.length > 0) {
+                    nextEntryDate = new Date(sortedStays[0].effectiveStart);
+                    nextEntryDate.setDate(nextEntryDate.getDate() + 180);
+                }
+            }
+
+            displaySchengenResults(daysInPeriod, remainingDays, isLegal, allowedUntil, nextEntryDate, referenceDate, calculationPeriod, hasIncomplete);
         }
-    
-        const allowedDays = parseInt(allowedDaysValue, 10);
-        const visaStartDate = new Date(visaStart);
-        const visaEndDate = new Date(visaEnd);
-    
-        if (visaEndDate <= visaStartDate) {
-            alert(translations[currentLanguage].errorVisaDates);
-            return;
-        }
-    
-        const { stayPeriods, hasIncomplete } = calculateStayPeriods();
-    
-        // === NEU: eindeutige Tage im Visumszeitraum ===
-        const msPerDay = 1000 * 60 * 60 * 24;
-        const visaDaySet = new Set();
-        let entriesUsed = stayPeriods.length;
-        let violations = [];
-    
-        stayPeriods.forEach((stay, index) => {
-            // Falls der gesamte Aufenthalt außerhalb des Visums liegt -> Verstoß, keine Tage zählen
-            if (stay.entryDate < visaStartDate || stay.exitDate > visaEndDate) {
-                violations.push(
-                    `${translations[currentLanguage].stayLabel} ${index + 1}: ${translations[currentLanguage].errorStayOutsideVisa}`
-                );
+\n        
+        function calculateVisa() {
+            const visaStart = document.getElementById('visaStart').value;
+            const visaEnd = document.getElementById('visaEnd').value;
+            const allowedDaysValue = document.getElementById('allowedDays').value;
+            const allowedEntries = document.getElementById('allowedEntries').value;
+
+            if (!visaStart || !visaEnd || !allowedDaysValue) {
+                alert(translations[currentLanguage].errorVisaConfig);
                 return;
             }
-    
-            // Aufenthalt vollständig innerhalb des Visums -> Tage taggenau zählen
-            const effectiveStart = stay.entryDate < visaStartDate ? visaStartDate : stay.entryDate;
-            const effectiveEnd = stay.exitDate > visaEndDate ? visaEndDate : stay.exitDate;
-    
-            let d = new Date(
-                effectiveStart.getFullYear(),
-                effectiveStart.getMonth(),
-                effectiveStart.getDate()
-            );
-            const endDay = new Date(
-                effectiveEnd.getFullYear(),
-                effectiveEnd.getMonth(),
-                effectiveEnd.getDate()
-            );
-    
-            while (d <= endDay) {
-                const key = d.toISOString().slice(0, 10);
-                visaDaySet.add(key);
-                d.setDate(d.getDate() + 1);
+
+            const allowedDays = parseInt(allowedDaysValue, 10);
+            const visaStartDate = new Date(visaStart);
+            const visaEndDate = new Date(visaEnd);
+
+            if (visaEndDate <= visaStartDate) {
+                alert(translations[currentLanguage].errorVisaDates);
+                return;
             }
-        });
-    
-        const totalDays = visaDaySet.size;
-    
-        let isCompliant = true;
-    
-        if (allowedEntries !== 'multi' && entriesUsed > parseInt(allowedEntries)) {
-            violations.push(`${translations[currentLanguage].tooManyEntries}: ${entriesUsed}/${allowedEntries}`);
-            isCompliant = false;
-        }
-    
-        if (totalDays > allowedDays) {
-            violations.push(`${translations[currentLanguage].daysOverLimit}: ${totalDays}/${allowedDays}`);
-            isCompliant = false;
-        }
-    
-        const remainingDays = Math.max(0, allowedDays - totalDays);
-    
-        const controlDate = getControlDate();
-        let effectiveStartForRemaining = controlDate < visaStartDate ? visaStartDate : controlDate;
-        let allowedUntil = null;
-    
-        if (remainingDays > 0 && effectiveStartForRemaining <= visaEndDate) {
-            allowedUntil = new Date(effectiveStartForRemaining);
-            allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1);
-            if (allowedUntil > visaEndDate) {
-                allowedUntil = visaEndDate;
+
+            const { stayPeriods, hasIncomplete } = calculateStayPeriods();
+
+            const msPerDay = 1000 * 60 * 60 * 24;
+            const uniqueDays = new Set();
+            let entriesUsed = stayPeriods.length;
+            let violations = [];
+
+            stayPeriods.forEach((stay, index) => {
+                const stayStart = stay.entryDate;
+                const stayEnd = stay.exitDate;
+
+                if (stayStart < visaStartDate || stayEnd > visaEndDate) {
+                    violations.push(`${translations[currentLanguage].stayLabel} ${index + 1}: ${translations[currentLanguage].errorStayOutsideVisa}`);
+                    return;
+                }
+
+                for (let d = new Date(stayStart.getFullYear(), stayStart.getMonth(), stayStart.getDate());
+                     d.getTime() <= stayEnd.getTime();
+                     d.setDate(d.getDate() + 1)) {
+                    uniqueDays.add(d.toISOString().slice(0, 10));
+                }
+            });
+
+            const totalDays = uniqueDays.size;
+            let isCompliant = true;
+
+            if (allowedEntries !== 'multi' && entriesUsed > parseInt(allowedEntries, 10)) {
+                violations.push(`${translations[currentLanguage].tooManyEntries}: ${entriesUsed}/${allowedEntries}`);
+                isCompliant = false;
             }
+
+            if (totalDays > allowedDays) {
+                violations.push(`${translations[currentLanguage].daysOverLimit}: ${totalDays}/${allowedDays}`);
+                isCompliant = false;
+            }
+
+            const remainingDays = Math.max(0, allowedDays - totalDays);
+
+            const controlDate = getControlDate();
+            let effectiveStart = controlDate < visaStartDate ? visaStartDate : controlDate;
+            let allowedUntil = null;
+
+            if (remainingDays > 0 && effectiveStart <= visaEndDate) {
+                allowedUntil = new Date(effectiveStart);
+                allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1);
+                if (allowedUntil > visaEndDate) {
+                    allowedUntil = visaEndDate;
+                }
+            }
+
+            calculationPeriodData = {
+                start: visaStartDate,
+                end: visaEndDate,
+                mode: 'visa'
+            };
+
+            displayVisaResults(totalDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStartDate, visaEndDate, allowedUntil, controlDate, hasIncomplete);
         }
-    
-        calculationPeriodData = {
-            start: visaStartDate,
-            end: visaEndDate,
-            mode: 'visa'
-        };
-    
-        displayVisaResults(
-            totalDays,
-            allowedDays,
-            remainingDays,
-            entriesUsed,
-            allowedEntries,
-            isCompliant,
-            violations,
-            visaStartDate,
-            visaEndDate,
-            allowedUntil,
-            controlDate,
-            hasIncomplete
-        );
-    }
+\n        function displaySchengenResultsfunction displaySchengenResults(usedDays, remainingDays, isLegal, allowedUntil, nextEntryDate, referenceDate, calculationPeriod, hasIncomplete) {
+            calculationPeriodData = calculationPeriod;
 
-    function displaySchengenResults(usedDays, remainingDays, isLegal, allowedUntil, nextEntryDate, referenceDate, calculationPeriod, hasIncomplete) {
-        calculationPeriodData = calculationPeriod;
+            const resultsDiv = document.getElementById('results');
+            const resultsList = document.getElementById('resultsList');
 
-        const resultsDiv = document.getElementById('results');
-        const resultsList = document.getElementById('resultsList');
+            let statusText, statusClass;
+            if (isLegal && remainingDays > 0) {
+                statusText = `${translations[currentLanguage].statusLegal} (${remainingDays} ${translations[currentLanguage].daysTextPlural} ${translations[currentLanguage].remaining})`;
+                statusClass = 'status-legal';
+            } else if (isLegal && remainingDays === 0) {
+                statusText = translations[currentLanguage].statusExhausted;
+                statusClass = 'status-warning';
+            } else {
+                statusText = translations[currentLanguage].statusViolation;
+                statusClass = 'status-illegal';
+            }
 
-        let statusText, statusClass;
-        if (isLegal && remainingDays > 0) {
-            statusText = `${translations[currentLanguage].statusLegal} (${remainingDays} ${translations[currentLanguage].daysTextPlural} ${translations[currentLanguage].remaining})`;
-            statusClass = 'status-legal';
-        } else if (isLegal && remainingDays === 0) {
-            statusText = translations[currentLanguage].statusExhausted;
-            statusClass = 'status-warning';
-        } else {
-            statusText = translations[currentLanguage].statusViolation;
-            statusClass = 'status-illegal';
-        }
+            const locale = currentLanguage === 'de' ? 'de-DE' : 'en-GB';
+            const allowedUntilText = allowedUntil
+                ? allowedUntil.toLocaleDateString(locale)
+                : '—';
 
-        const locale = currentLanguage === 'de' ? 'de-DE' : 'en-GB';
-        const allowedUntilText = allowedUntil
-            ? allowedUntil.toLocaleDateString(locale)
-            : '—';
-
-        resultsList.innerHTML = `
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].usedDaysLabel}</span>
-                <span class="result-value">${usedDays} / 90 ${translations[currentLanguage].daysTextPlural}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span>
-                <span class="result-value">${Math.max(0, remainingDays)} ${translations[currentLanguage].daysTextPlural}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span>
-                <span class="result-value">${allowedUntilText}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].statusLabel}</span>
-                <span class="result-value ${statusClass}">${statusText}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].calculationDateLabel}</span>
-                <span class="result-value">${referenceDate.toLocaleDateString(locale)}</span>
-            </div>
-        `;
-
-        if (nextEntryDate) {
-            resultsList.innerHTML += `
-                <div class="next-entry-date">
-                    ${translations[currentLanguage].nextEntryText} <strong>${nextEntryDate.toLocaleDateString(locale)}</strong>
+            resultsList.innerHTML = `
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].usedDaysLabel}</span>
+                    <span class="result-value">${usedDays} / 90 ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span>
+                    <span class="result-value">${Math.max(0, remainingDays)} ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span>
+                    <span class="result-value">${allowedUntilText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].statusLabel}</span>
+                    <span class="result-value ${statusClass}">${statusText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].calculationDateLabel}</span>
+                    <span class="result-value">${referenceDate.toLocaleDateString(locale)}</span>
                 </div>
             `;
+
+            if (nextEntryDate) {
+                resultsList.innerHTML += `
+                    <div class="next-entry-date">
+                        ${translations[currentLanguage].nextEntryText} <strong>${nextEntryDate.toLocaleDateString(locale)}</strong>
+                    </div>
+                `;
+            }
+
+            if (hasIncomplete) {
+                resultsList.innerHTML += `
+                    <div class="next-entry-date">
+                        ⚠️ ${translations[currentLanguage].incompleteDataWarning}
+                    </div>
+                `;
+            }
+
+            resultsDiv.classList.remove('hidden');
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
         }
 
-        if (hasIncomplete) {
-            resultsList.innerHTML += `
-                <div class="next-entry-date">
-                    ${translations[currentLanguage].partialDataWarning}
+        function displayVisaResults(usedDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStart, visaEnd, allowedUntil, controlDate, hasIncomplete) {
+            const resultsDiv = document.getElementById('results');
+            const resultsList = document.getElementById('resultsList');
+
+            const statusText = isCompliant ? translations[currentLanguage].statusVisaValid : translations[currentLanguage].statusVisaViolation;
+            const statusClass = isCompliant ? 'status-legal' : 'status-illegal';
+            const entriesText = allowedEntries === 'multi' ? 'MULTI' : allowedEntries;
+
+            const locale = currentLanguage === 'de' ? 'de-DE' : 'en-GB';
+            const allowedUntilText = allowedUntil
+                ? allowedUntil.toLocaleDateString(locale)
+                : '—';
+
+            resultsList.innerHTML = `
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].usedDaysVisaLabel}</span>
+                    <span class="result-value">${usedDays} / ${allowedDays} ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span>
+                    <span class="result-value">${remainingDays} ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span>
+                    <span class="result-value">${allowedUntilText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].entriesUsedLabel}</span>
+                    <span class="result-value">${entriesUsed} / ${entriesText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].statusLabel}</span>
+                    <span class="result-value ${statusClass}">${statusText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">🗓️ ${translations[currentLanguage].visaPeriodLabel}</span>
+                    <span class="result-value">${visaStart.toLocaleDateString(locale)} - ${visaEnd.toLocaleDateString(locale)}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].calculationDateLabel}</span>
+                    <span class="result-value">${controlDate.toLocaleDateString(locale)}</span>
                 </div>
             `;
+
+            if (violations.length > 0) {
+                resultsList.innerHTML += `
+                    <div class="next-entry-date">
+                        <strong>⚠️ ${translations[currentLanguage].violationsTitle}:</strong><br>
+                        ${violations.join('<br>')}
+                    </div>
+                `;
+            }
+
+            if (hasIncomplete) {
+                resultsList.innerHTML += `
+                    <div class="next-entry-date">
+                        ⚠️ ${translations[currentLanguage].incompleteDataWarning}
+                    </div>
+                `;
+            }
+
+            resultsDiv.classList.remove('hidden');
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
         }
 
-        resultsDiv.classList.remove('hidden');
-        resultsDiv.scrollIntoView({ behavior: 'smooth' });
-    }
+        function collectEnteredStays() {
+            const { stayPeriods } = calculateStayPeriods();
 
-    function displayVisaResults(usedDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStart, visaEnd, allowedUntil, controlDate, hasIncomplete) {
-        const resultsDiv = document.getElementById('results');
-        const resultsList = document.getElementById('resultsList');
-
-        const statusText = isCompliant ? translations[currentLanguage].statusVisaValid : translations[currentLanguage].statusVisaViolation;
-        const statusClass = isCompliant ? 'status-legal' : 'status-illegal';
-        const entriesText = allowedEntries === 'multi' ? 'MULTI' : allowedEntries;
-
-        const locale = currentLanguage === 'de' ? 'de-DE' : 'en-GB';
-        const allowedUntilText = allowedUntil
-            ? allowedUntil.toLocaleDateString(locale)
-            : '—';
-
-        resultsList.innerHTML = `
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].usedDaysVisaLabel}</span>
-                <span class="result-value">${usedDays} / ${allowedDays} ${translations[currentLanguage].daysTextPlural}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span>
-                <span class="result-value">${remainingDays} ${translations[currentLanguage].daysTextPlural}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span>
-                <span class="result-value">${allowedUntilText}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].entriesUsedLabel}</span>
-                <span class="result-value">${entriesUsed} / ${entriesText}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].statusLabel}</span>
-                <span class="result-value ${statusClass}">${statusText}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">🗓️ ${translations[currentLanguage].visaPeriodLabel}</span>
-                <span class="result-value">${visaStart.toLocaleDateString(locale)} - ${visaEnd.toLocaleDateString(locale)}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">${translations[currentLanguage].calculationDateLabel}</span>
-                <span class="result-value">${controlDate.toLocaleDateString(locale)}</span>
-            </div>
-        `;
-
-        if (violations.length > 0) {
-            resultsList.innerHTML += `
-                <div class="next-entry-date">
-                    <strong>⚠️ ${translations[currentLanguage].violationsTitle}:</strong><br>
-                    ${violations.join('<br>')}
-                </div>
-            `;
+            return stayPeriods.map(stay => ({
+                number: stay.number,
+                startDate: stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
+                endDate: stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
+                days: stay.days
+            }));
         }
-
-        if (hasIncomplete) {
-            resultsList.innerHTML += `
-                <div class="next-entry-date">
-                    ${translations[currentLanguage].partialDataWarning}
-                </div>
-            `;
-        }
-
-        resultsDiv.classList.remove('hidden');
-        resultsDiv.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    function collectEnteredStays() {
-        const { stayPeriods } = calculateStayPeriods();
-
-        return stayPeriods.map(stay => ({
-            number: stay.number,
-            startDate: stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
-            endDate: stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
-            days: stay.days
-        }));
-    }
-
-    // deine bestehende printResults()/createPrintHTML()/showTextExport-Funktionen
-    // können darunter unverändert stehen bleiben
 
         function printResults() {
     try {
@@ -2428,4 +2418,3 @@
     </script>
 </body>
 </html>
-
