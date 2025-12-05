@@ -1686,6 +1686,7 @@
         period180Start.setDate(period180Start.getDate() - 180);
     
         // === NEU: eindeutige Kalendertage im 180-Tage-Zeitraum ===
+        const msPerDay = 1000 * 60 * 60 * 24;
         const uniqueDays = new Set();
         const relevantStays = [];
     
@@ -1694,6 +1695,21 @@
                 const effectiveStart = stay.start > period180Start ? stay.start : period180Start;
                 const effectiveEnd = stay.end < referenceDate ? stay.end : referenceDate;
     
+                // Für Anzeige und Logik zur nächsten möglichen Einreise behalten wir die Roh-Information
+                    const rawDays = Math.round((effectiveEnd.getTime() - effectiveStart.getTime()) / msPerDay) + 1;
+                    relevantStays.push({
+                        effectiveStart,
+                        effectiveEnd,
+                        days: rawDays
+                    });
+
+                    // Für die eigentliche 90/180-Tage-Berechnung nur eindeutige Kalendertage zählen
+                    for (let d = new Date(effectiveStart.getFullYear(), effectiveStart.getMonth(), effectiveStart.getDate());
+                         d.getTime() <= effectiveEnd.getTime();
+                         d.setDate(d.getDate() + 1)) {
+                        uniqueDays.add(d.toISOString().slice(0, 10));
+                    }
+                
                 // nur ganze Kalendertage zählen, Ein- und Ausreise inklusive
                 let d = new Date(
                     effectiveStart.getFullYear(),
@@ -1782,6 +1798,7 @@
             return;
         }
     
+        const allowedDays = parseInt(allowedDaysValue, 10);
         const visaStartDate = new Date(visaStart);
         const visaEndDate = new Date(visaEnd);
     
@@ -1793,6 +1810,7 @@
         const { stayPeriods, hasIncomplete } = calculateStayPeriods();
     
         // === NEU: eindeutige Tage im Visumszeitraum ===
+        const msPerDay = 1000 * 60 * 60 * 24;
         const visaDaySet = new Set();
         let entriesUsed = stayPeriods.length;
         let violations = [];
@@ -2382,26 +2400,32 @@
                 : 'The calculation has been downloaded as a text file.');
         }
 
-            document.addEventListener('DOMContentLoaded', function() {
-                generateStayEntries();
-                updatePeriodDisplay();
-        
-                const allowedDaysInput = document.getElementById('allowedDays');
-                if (allowedDaysInput) {
-                    allowedDaysInput.placeholder = translations[currentLanguage].placeholder90;
-                }
-        
-                const controlDateInput = document.getElementById('controlDateInput');
-                if (controlDateInput) {
-                    const today = getTodayMEZDateOnly();
-                    const yyyy = today.getFullYear();
-                    const mm = String(today.getMonth() + 1).padStart(2, '0');
-                    const dd = String(today.getDate()).padStart(2, '0');
-                    controlDateInput.value = `${yyyy}-${mm}-${dd}`;
-                }
-        
-                calculateStayPeriods();
-            });
+        document.addEventListener('DOMContentLoaded', function() {
+            generateStayEntries();
+            updatePeriodDisplay();
+
+            const allowedDaysInput = document.getElementById('allowedDays');
+            if (allowedDaysInput) {
+                allowedDaysInput.placeholder = translations[currentLanguage].placeholder90;
+            }
+
+            const controlDateInput = document.getElementById('controlDateInput');
+            if (controlDateInput) {
+                const today = getTodayMEZDateOnly();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                controlDateInput.value = `${yyyy}-${mm}-${dd}`;
+            }
+
+            calculateStayPeriods();
+
+            const mezToday = getTodayMEZ();
+            console.log('🕐 Aktuelles MEZ-Datum:', mezToday.toLocaleDateString('de-DE'), mezToday.toLocaleTimeString('de-DE'));
+            console.log('🌍 Browser-Zeitzone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+            console.log('📅 Verwendetes Datum für Berechnungen:', getTodayMEZDateOnly().toLocaleDateString('de-DE'));
+        });
     </script>
 </body>
 </html>
+
