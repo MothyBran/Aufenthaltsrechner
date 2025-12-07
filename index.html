@@ -1250,6 +1250,205 @@
             updatePeriodDisplay();
         }
 
+                // --- UI & EINGABE-MANAGEMENT (Wiederherstellung) ---
+
+        function saveCurrentInputs() {
+            const savedData = {};
+            // Sichert Entry 1-10
+            for (let i = 1; i <= 10; i++) {
+                const entryInput = document.getElementById(`${currentMode}Entry${i}`);
+                if (entryInput) savedData[`${currentMode}Entry${i}`] = entryInput.value;
+            }
+            // Sichert Exit 1-10
+            for (let i = 1; i <= 10; i++) {
+                const exitInput = document.getElementById(`${currentMode}Exit${i}`);
+                if (exitInput) savedData[`${currentMode}Exit${i}`] = exitInput.value;
+            }
+            return savedData;
+        }
+
+        function restoreInputs(savedData) {
+            for (const [id, value] of Object.entries(savedData)) {
+                const input = document.getElementById(id);
+                if (input && value) {
+                    input.value = value;
+                }
+            }
+            // Nach dem Wiederherstellen sofort neu berechnen
+            calculateStayPeriods();
+        }
+
+        function generateStayEntries() {
+            const containerId = currentMode === 'schengen' ? 'schengenStayEntries' : 'visaStayEntries';
+            const container = document.getElementById(containerId);
+
+            // Daten sichern, bevor wir das HTML neu schreiben
+            const savedData = saveCurrentInputs();
+
+            container.innerHTML = '';
+
+            // 1. EINREISEN GENERIEREN
+            let entriesHTML = `
+                <div class="entries-section">
+                    <h3>🛬 ${translations[currentLanguage].entryHeading}</h3>
+                    <div class="entries-grid">
+            `;
+
+            for (let i = 1; i <= visibleEntries; i++) {
+                const deleteButton = i > 1 ? `
+                    <button type="button" class="delete-entry-btn" onclick="removeEntry(${i})" title="Entfernen">🗑️</button>
+                ` : '';
+
+                entriesHTML += `
+                    <div class="entry-item">
+                        <div class="entry-header">
+                            <label>${translations[currentLanguage].entryLabel} ${i}</label>
+                            ${deleteButton}
+                        </div>
+                        <input type="date" id="${currentMode}Entry${i}" onchange="calculateStayPeriods()">
+                    </div>
+                `;
+            }
+
+            if (visibleEntries < 10) {
+                entriesHTML += `
+                    <div class="add-entry-section">
+                        <button type="button" class="add-entry-btn" onclick="addEntry()">
+                            ${translations[currentLanguage].addEntryBtn}
+                        </button>
+                    </div>
+                `;
+            }
+
+            entriesHTML += `</div></div>`;
+
+            // 2. AUSREISEN GENERIEREN
+            let exitsHTML = `
+                <div class="exits-section">
+                    <h3>🛫 ${translations[currentLanguage].exitHeading}</h3>
+                    <div class="exits-grid">
+            `;
+
+            for (let i = 1; i <= visibleExits; i++) {
+                const deleteButton = i > 1 ? `
+                    <button type="button" class="delete-exit-btn" onclick="removeExit(${i})" title="Entfernen">🗑️</button>
+                ` : '';
+
+                exitsHTML += `
+                    <div class="exit-item">
+                        <div class="exit-header">
+                            <label>${translations[currentLanguage].exitLabel} ${i}</label>
+                            ${deleteButton}
+                        </div>
+                        <input type="date" id="${currentMode}Exit${i}" onchange="calculateStayPeriods()">
+                    </div>
+                `;
+            }
+
+            if (visibleExits < 10) {
+                exitsHTML += `
+                    <div class="add-exit-section">
+                        <button type="button" class="add-exit-btn" onclick="addExit()">
+                            ${translations[currentLanguage].addExitBtn}
+                        </button>
+                    </div>
+                `;
+            }
+
+            exitsHTML += `</div></div>`;
+
+            // Container für berechnete Zeiträume
+            const calculatedStaysHTML = `
+                <div id="${currentMode}CalculatedStays" class="calculated-stays-container"></div>
+            `;
+
+            container.innerHTML = entriesHTML + exitsHTML + calculatedStaysHTML;
+
+            // Daten wieder einfügen
+            setTimeout(() => {
+                restoreInputs(savedData);
+            }, 10);
+        }
+
+        function addEntry() {
+            if (visibleEntries < 10) {
+                visibleEntries++;
+                generateStayEntries();
+            }
+        }
+
+        function addExit() {
+            if (visibleExits < 10) {
+                visibleExits++;
+                generateStayEntries();
+            }
+        }
+
+        function removeEntry(entryIndex) {
+            if (visibleEntries > 1 && entryIndex > 1) {
+                const savedData = saveCurrentInputs();
+                delete savedData[`${currentMode}Entry${entryIndex}`];
+
+                // Daten verschieben (Lücke schließen)
+                const adjustedData = {};
+                for (const [key, value] of Object.entries(savedData)) {
+                    const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
+                    if (match) {
+                        const mode = match[1];
+                        const type = match[2];
+                        const index = parseInt(match[3]);
+
+                        if (mode === currentMode && type === 'Entry') {
+                            if (index < entryIndex) {
+                                adjustedData[key] = value;
+                            } else if (index > entryIndex) {
+                                const newKey = `${mode}${type}${index - 1}`;
+                                adjustedData[newKey] = value;
+                            }
+                        } else {
+                            adjustedData[key] = value;
+                        }
+                    }
+                }
+
+                visibleEntries--;
+                generateStayEntries();
+                setTimeout(() => restoreInputs(adjustedData), 10);
+            }
+        }
+
+        function removeExit(exitIndex) {
+            if (visibleExits > 1 && exitIndex > 1) {
+                const savedData = saveCurrentInputs();
+                delete savedData[`${currentMode}Exit${exitIndex}`];
+
+                const adjustedData = {};
+                for (const [key, value] of Object.entries(savedData)) {
+                    const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
+                    if (match) {
+                        const mode = match[1];
+                        const type = match[2];
+                        const index = parseInt(match[3]);
+
+                        if (mode === currentMode && type === 'Exit') {
+                            if (index < exitIndex) {
+                                adjustedData[key] = value;
+                            } else if (index > exitIndex) {
+                                const newKey = `${mode}${type}${index - 1}`;
+                                adjustedData[newKey] = value;
+                            }
+                        } else {
+                            adjustedData[key] = value;
+                        }
+                    }
+                }
+
+                visibleExits--;
+                generateStayEntries();
+                setTimeout(() => restoreInputs(adjustedData), 10);
+            }
+        }
+        
         function updatePeriodDisplay() {
             const periodStart = document.getElementById('periodStart');
             const periodEnd = document.getElementById('periodEnd');
