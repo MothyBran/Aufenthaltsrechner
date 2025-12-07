@@ -994,48 +994,15 @@
         </div>
     </div>
 
-    <script>
+        <script>
+        // ==========================================
+        // 1. GLOBALE VARIABLEN & KONFIGURATION
+        // ==========================================
         let currentLanguage = 'de';
         let currentMode = 'schengen';
         let visibleEntries = 1;
         let visibleExits = 1;
         let calculationPeriodData = null;
-
-        // Funktion für korrektes Datum in mitteleuropäischer Zeit
-        function getTodayMEZ() {
-            const now = new Date();
-            // Konvertierung zu MEZ/MESZ (UTC+1/UTC+2)
-            const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-            const mezTime = new Date(utcTime + (1 * 3600000)); // UTC+1 (MEZ)
-
-            // Prüfung auf Sommerzeit (MESZ = UTC+2)
-            const year = mezTime.getFullYear();
-            const marchLastSunday = new Date(year, 2, 31 - ((new Date(year, 2, 31).getDay() + 6) % 7));
-            const octoberLastSunday = new Date(year, 9, 31 - ((new Date(year, 9, 31).getDay() + 6) % 7));
-
-            if (now >= marchLastSunday && now < octoberLastSunday) {
-                // Sommerzeit (MESZ = UTC+2)
-                return new Date(utcTime + (2 * 3600000));
-            } else {
-                // Winterzeit (MEZ = UTC+1)
-                return mezTime;
-            }
-        }
-
-        // Funktion für MEZ-Datum ohne Zeitanteil (nur Jahr-Monat-Tag)
-        function getTodayMEZDateOnly() {
-            const mezToday = getTodayMEZ();
-            return new Date(mezToday.getFullYear(), mezToday.getMonth(), mezToday.getDate());
-        }
-
-        function getControlDate() {
-            const input = document.getElementById('controlDateInput');
-            if (input && input.value) {
-                const d = new Date(input.value);
-                return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-            }
-            return getTodayMEZDateOnly();
-        }
 
         const translations = {
             de: {
@@ -1220,28 +1187,79 @@
             }
         };
 
+        // ==========================================
+        // 2. HELPER FUNCTIONS (Time & Calculation)
+        // ==========================================
+
+        function getTodayMEZ() {
+            const now = new Date();
+            const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const mezTime = new Date(utcTime + (1 * 3600000));
+            const year = mezTime.getFullYear();
+            const marchLastSunday = new Date(year, 2, 31 - ((new Date(year, 2, 31).getDay() + 6) % 7));
+            const octoberLastSunday = new Date(year, 9, 31 - ((new Date(year, 9, 31).getDay() + 6) % 7));
+            if (now >= marchLastSunday && now < octoberLastSunday) {
+                return new Date(utcTime + (2 * 3600000));
+            } else {
+                return mezTime;
+            }
+        }
+
+        function getTodayMEZDateOnly() {
+            const mezToday = getTodayMEZ();
+            return new Date(mezToday.getFullYear(), mezToday.getMonth(), mezToday.getDate());
+        }
+
+        function getControlDate() {
+            const input = document.getElementById('controlDateInput');
+            if (input && input.value) {
+                const d = new Date(input.value);
+                return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            }
+            return getTodayMEZDateOnly();
+        }
+
+        // --- HILFSFUNKTION: Verhindert Doppelzählung von Tagen ---
+        function countUniqueDays(stays, periodStart, periodEnd) {
+            const uniqueDays = new Set();
+            const startLimit = periodStart ? periodStart.getTime() : -Infinity;
+            const endLimit = periodEnd ? periodEnd.getTime() : Infinity;
+
+            stays.forEach(stay => {
+                let current = new Date(stay.start);
+                const end = new Date(stay.end);
+
+                while (current <= end) {
+                    const currentTs = current.getTime();
+                    if (currentTs >= startLimit && currentTs <= endLimit) {
+                        uniqueDays.add(current.toISOString().split('T')[0]);
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+            });
+            return uniqueDays.size;
+        }
+
+        // ==========================================
+        // 3. UI FUNCTIONS (Language, Inputs, Generation)
+        // ==========================================
+
         function setLanguage(lang) {
             currentLanguage = lang;
-
             document.querySelectorAll('.language-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
 
             for (const [key, value] of Object.entries(translations[lang])) {
                 const element = document.getElementById(key);
-                if (element) {
-                    element.innerHTML = value;
-                }
+                if (element) element.innerHTML = value;
             }
 
             const allowedDaysInput = document.getElementById('allowedDays');
-            if (allowedDaysInput) {
-                allowedDaysInput.placeholder = translations[lang].placeholder90;
-            }
+            if (allowedDaysInput) allowedDaysInput.placeholder = translations[lang].placeholder90;
 
             const singleEntry = document.getElementById('singleEntry');
             const doubleEntry = document.getElementById('doubleEntry');
             const multiEntry = document.getElementById('multiEntry');
-
             if (singleEntry) singleEntry.textContent = translations[lang].singleEntry;
             if (doubleEntry) doubleEntry.textContent = translations[lang].doubleEntry;
             if (multiEntry) multiEntry.textContent = translations[lang].multiEntry;
@@ -1250,205 +1268,6 @@
             updatePeriodDisplay();
         }
 
-                // --- UI & EINGABE-MANAGEMENT (Wiederherstellung) ---
-
-        function saveCurrentInputs() {
-            const savedData = {};
-            // Sichert Entry 1-10
-            for (let i = 1; i <= 10; i++) {
-                const entryInput = document.getElementById(`${currentMode}Entry${i}`);
-                if (entryInput) savedData[`${currentMode}Entry${i}`] = entryInput.value;
-            }
-            // Sichert Exit 1-10
-            for (let i = 1; i <= 10; i++) {
-                const exitInput = document.getElementById(`${currentMode}Exit${i}`);
-                if (exitInput) savedData[`${currentMode}Exit${i}`] = exitInput.value;
-            }
-            return savedData;
-        }
-
-        function restoreInputs(savedData) {
-            for (const [id, value] of Object.entries(savedData)) {
-                const input = document.getElementById(id);
-                if (input && value) {
-                    input.value = value;
-                }
-            }
-            // Nach dem Wiederherstellen sofort neu berechnen
-            calculateStayPeriods();
-        }
-
-        function generateStayEntries() {
-            const containerId = currentMode === 'schengen' ? 'schengenStayEntries' : 'visaStayEntries';
-            const container = document.getElementById(containerId);
-
-            // Daten sichern, bevor wir das HTML neu schreiben
-            const savedData = saveCurrentInputs();
-
-            container.innerHTML = '';
-
-            // 1. EINREISEN GENERIEREN
-            let entriesHTML = `
-                <div class="entries-section">
-                    <h3>🛬 ${translations[currentLanguage].entryHeading}</h3>
-                    <div class="entries-grid">
-            `;
-
-            for (let i = 1; i <= visibleEntries; i++) {
-                const deleteButton = i > 1 ? `
-                    <button type="button" class="delete-entry-btn" onclick="removeEntry(${i})" title="Entfernen">🗑️</button>
-                ` : '';
-
-                entriesHTML += `
-                    <div class="entry-item">
-                        <div class="entry-header">
-                            <label>${translations[currentLanguage].entryLabel} ${i}</label>
-                            ${deleteButton}
-                        </div>
-                        <input type="date" id="${currentMode}Entry${i}" onchange="calculateStayPeriods()">
-                    </div>
-                `;
-            }
-
-            if (visibleEntries < 10) {
-                entriesHTML += `
-                    <div class="add-entry-section">
-                        <button type="button" class="add-entry-btn" onclick="addEntry()">
-                            ${translations[currentLanguage].addEntryBtn}
-                        </button>
-                    </div>
-                `;
-            }
-
-            entriesHTML += `</div></div>`;
-
-            // 2. AUSREISEN GENERIEREN
-            let exitsHTML = `
-                <div class="exits-section">
-                    <h3>🛫 ${translations[currentLanguage].exitHeading}</h3>
-                    <div class="exits-grid">
-            `;
-
-            for (let i = 1; i <= visibleExits; i++) {
-                const deleteButton = i > 1 ? `
-                    <button type="button" class="delete-exit-btn" onclick="removeExit(${i})" title="Entfernen">🗑️</button>
-                ` : '';
-
-                exitsHTML += `
-                    <div class="exit-item">
-                        <div class="exit-header">
-                            <label>${translations[currentLanguage].exitLabel} ${i}</label>
-                            ${deleteButton}
-                        </div>
-                        <input type="date" id="${currentMode}Exit${i}" onchange="calculateStayPeriods()">
-                    </div>
-                `;
-            }
-
-            if (visibleExits < 10) {
-                exitsHTML += `
-                    <div class="add-exit-section">
-                        <button type="button" class="add-exit-btn" onclick="addExit()">
-                            ${translations[currentLanguage].addExitBtn}
-                        </button>
-                    </div>
-                `;
-            }
-
-            exitsHTML += `</div></div>`;
-
-            // Container für berechnete Zeiträume
-            const calculatedStaysHTML = `
-                <div id="${currentMode}CalculatedStays" class="calculated-stays-container"></div>
-            `;
-
-            container.innerHTML = entriesHTML + exitsHTML + calculatedStaysHTML;
-
-            // Daten wieder einfügen
-            setTimeout(() => {
-                restoreInputs(savedData);
-            }, 10);
-        }
-
-        function addEntry() {
-            if (visibleEntries < 10) {
-                visibleEntries++;
-                generateStayEntries();
-            }
-        }
-
-        function addExit() {
-            if (visibleExits < 10) {
-                visibleExits++;
-                generateStayEntries();
-            }
-        }
-
-        function removeEntry(entryIndex) {
-            if (visibleEntries > 1 && entryIndex > 1) {
-                const savedData = saveCurrentInputs();
-                delete savedData[`${currentMode}Entry${entryIndex}`];
-
-                // Daten verschieben (Lücke schließen)
-                const adjustedData = {};
-                for (const [key, value] of Object.entries(savedData)) {
-                    const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
-                    if (match) {
-                        const mode = match[1];
-                        const type = match[2];
-                        const index = parseInt(match[3]);
-
-                        if (mode === currentMode && type === 'Entry') {
-                            if (index < entryIndex) {
-                                adjustedData[key] = value;
-                            } else if (index > entryIndex) {
-                                const newKey = `${mode}${type}${index - 1}`;
-                                adjustedData[newKey] = value;
-                            }
-                        } else {
-                            adjustedData[key] = value;
-                        }
-                    }
-                }
-
-                visibleEntries--;
-                generateStayEntries();
-                setTimeout(() => restoreInputs(adjustedData), 10);
-            }
-        }
-
-        function removeExit(exitIndex) {
-            if (visibleExits > 1 && exitIndex > 1) {
-                const savedData = saveCurrentInputs();
-                delete savedData[`${currentMode}Exit${exitIndex}`];
-
-                const adjustedData = {};
-                for (const [key, value] of Object.entries(savedData)) {
-                    const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
-                    if (match) {
-                        const mode = match[1];
-                        const type = match[2];
-                        const index = parseInt(match[3]);
-
-                        if (mode === currentMode && type === 'Exit') {
-                            if (index < exitIndex) {
-                                adjustedData[key] = value;
-                            } else if (index > exitIndex) {
-                                const newKey = `${mode}${type}${index - 1}`;
-                                adjustedData[newKey] = value;
-                            }
-                        } else {
-                            adjustedData[key] = value;
-                        }
-                    }
-                }
-
-                visibleExits--;
-                generateStayEntries();
-                setTimeout(() => restoreInputs(adjustedData), 10);
-            }
-        }
-        
         function updatePeriodDisplay() {
             const periodStart = document.getElementById('periodStart');
             const periodEnd = document.getElementById('periodEnd');
@@ -1464,7 +1283,6 @@
                 const today = getTodayMEZDateOnly();
 
                 periodStart.textContent = period180Start.toLocaleDateString(locale);
-
                 let endText = controlDate.toLocaleDateString(locale);
                 const controlIsToday = controlInput && controlInput.value &&
                     new Date(controlInput.value).getTime() === today.getTime();
@@ -1472,7 +1290,6 @@
                 if (!controlInput.value || controlIsToday) {
                     endText += ` (${translations[currentLanguage].todayMEZ})`;
                 }
-
                 periodEnd.textContent = endText;
                 periodNote.textContent = translations[currentLanguage].calculationPeriodSchengen;
             } else {
@@ -1482,7 +1299,6 @@
                 if (visaStart && visaEnd) {
                     const startDate = new Date(visaStart);
                     const endDate = new Date(visaEnd);
-
                     periodStart.textContent = startDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
                     periodEnd.textContent = endDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
                     periodNote.textContent = currentLanguage === 'de'
@@ -1514,7 +1330,6 @@
                 schengenMode.classList.add('active');
                 visaMode.classList.remove('active');
             }
-
             results.classList.add('hidden');
             generateStayEntries();
             updatePeriodDisplay();
@@ -1522,387 +1337,56 @@
 
         function saveCurrentInputs() {
             const savedData = {};
-
             for (let i = 1; i <= 10; i++) {
                 const entryInput = document.getElementById(`${currentMode}Entry${i}`);
-                if (entryInput) {
-                    savedData[`${currentMode}Entry${i}`] = entryInput.value;
-                }
+                if (entryInput) savedData[`${currentMode}Entry${i}`] = entryInput.value;
             }
-
             for (let i = 1; i <= 10; i++) {
                 const exitInput = document.getElementById(`${currentMode}Exit${i}`);
-                if (exitInput) {
-                    savedData[`${currentMode}Exit${i}`] = exitInput.value;
-                }
+                if (exitInput) savedData[`${currentMode}Exit${i}`] = exitInput.value;
             }
-
             return savedData;
         }
 
         function restoreInputs(savedData) {
             for (const [id, value] of Object.entries(savedData)) {
                 const input = document.getElementById(id);
-                if (input && value) {
-                    input.value = value;
-                }
+                if (input && value) input.value = value;
             }
             calculateStayPeriods();
-        }
-
-        
-        function calculateStayPeriods() {
-            const entries = [];
-            const exits = [];
-
-            // Collect entry dates
-            for (let i = 1; i <= 10; i++) {
-                const entryInput = document.getElementById(`${currentMode}Entry${i}`);
-                if (entryInput && entryInput.value) {
-                    entries.push({
-                        date: new Date(entryInput.value),
-                        index: i
-                    });
-                }
-            }
-
-            // Collect exit dates
-            for (let i = 1; i <= 10; i++) {
-                const exitInput = document.getElementById(`${currentMode}Exit${i}`);
-                if (exitInput && exitInput.value) {
-                    exits.push({
-                        date: new Date(exitInput.value),
-                        index: i
-                    });
-                }
-            }
-
-            // Sort by date
-            entries.sort((a, b) => a.date.getTime() - b.date.getTime());
-            exits.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-            const stayPeriods = [];
-            let hasIncomplete = false;
-
-            if (entries.length === 0) {
-                // No entries but maybe exits -> mark as incomplete but continue
-                if (exits.length > 0) {
-                    hasIncomplete = true;
-                }
-                displayCalculatedStays(stayPeriods);
-                return { stayPeriods, hasIncomplete };
-            }
-
-            let exitPointer = 0;
-            const controlDate = getControlDate();
-
-            for (let i = 0; i < entries.length; i++) {
-                const entry = entries[i];
-                let exitDate = null;
-                let usedRealExit = false;
-
-                // Skip exits that are before this entry (unmatched exits)
-                while (exitPointer < exits.length && exits[exitPointer].date < entry.date) {
-                    hasIncomplete = true;
-                    exitPointer++;
-                }
-
-                // Try to match next exit on or after entry date
-                if (exitPointer < exits.length && exits[exitPointer].date >= entry.date) {
-                    exitDate = exits[exitPointer].date;
-                    usedRealExit = true;
-                    exitPointer++;
-                } else {
-                    // No real exit available -> estimate
-                    hasIncomplete = true;
-
-                    if (i + 1 < entries.length) {
-                        // Use next entry date as substitute end of this stay
-                        exitDate = new Date(entries[i + 1].date);
-                    } else {
-                        // Last entry without exit -> use control date
-                        exitDate = new Date(controlDate);
-                    }
-                }
-
-                // Safety: never allow negative duration
-                if (exitDate < entry.date) {
-                    exitDate = new Date(entry.date);
-                }
-
-                const timeDiff = exitDate.getTime() - entry.date.getTime();
-                const days = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
-
-        // --- NEUE HILFSFUNKTION: Verhindert Doppelzählung von Tagen ---
-        function countUniqueDays(stays, periodStart, periodEnd) {
-            const uniqueDays = new Set();
-            
-            // Konvertiere Grenzen in Timestamps für Vergleich
-            const startLimit = periodStart ? periodStart.getTime() : -Infinity;
-            const endLimit = periodEnd ? periodEnd.getTime() : Infinity;
-
-            stays.forEach(stay => {
-                // Iteriere durch jeden Tag des Aufenthalts
-                let current = new Date(stay.start);
-                const end = new Date(stay.end);
-
-                while (current <= end) {
-                    const currentTs = current.getTime();
-                    
-                    // Prüfen ob der Tag im relevanten Fenster liegt (z.B. 180 Tage)
-                    if (currentTs >= startLimit && currentTs <= endLimit) {
-                        // Speichere als String "YYYY-MM-DD" um Duplikate im Set automatisch zu filtern
-                        uniqueDays.add(current.toISOString().split('T')[0]);
-                    }
-                    
-                    // Einen Tag weiterzählen
-                    current.setDate(current.getDate() + 1);
-                }
-            });
-
-            return uniqueDays.size;
-        }
-
-        // --- ÜBERARBEITETE FUNKTION: Logik für Lückenfüllung ---
-        function calculateStayPeriods() {
-            const stayPeriods = [];
-            let hasIncomplete = false;
-            const controlDate = getControlDate();
-
-            // Wir sammeln alle Zeilen (1-10)
-            let rawRows = [];
-            for (let i = 1; i <= 10; i++) {
-                const entryInput = document.getElementById(`${currentMode}Entry${i}`);
-                const exitInput = document.getElementById(`${currentMode}Exit${i}`);
-                
-                // Wir betrachten eine Zeile als relevant, wenn zumindest ein Feld ausgefüllt ist
-                if ((entryInput && entryInput.value) || (exitInput && exitInput.value)) {
-                    rawRows.push({
-                        index: i,
-                        entryDate: entryInput.value ? new Date(entryInput.value) : null,
-                        exitDate: exitInput.value ? new Date(exitInput.value) : null
-                    });
-                }
-            }
-
-            // Nach Einreise sortieren (falls vorhanden), sonst Index behalten
-            rawRows.sort((a, b) => {
-                if(a.entryDate && b.entryDate) return a.entryDate - b.entryDate;
-                return a.index - b.index;
-            });
-
-            for (let i = 0; i < rawRows.length; i++) {
-                let row = rawRows[i];
-                let entryDate = row.entryDate;
-                let exitDate = row.exitDate;
-                let isEstimated = false;
-
-                // 1. FEHLENDE EINREISE
-                // Logik: Wenn Einreise fehlt, nimm Ausreise der vorherigen Zeile
-                if (!entryDate && exitDate) {
-                    if (i > 0 && stayPeriods[i-1].exitDate) {
-                        entryDate = new Date(stayPeriods[i-1].exitDate); // Kopie erstellen
-                        isEstimated = true;
-                    } else {
-                        // Kein Vorgänger? Dann kann nicht berechnet werden (oder Startdatum Visum/ControlDate - hier lassen wir es leer -> Fehler)
-                        // Option: Wir könnten das Startdatum des Visums nehmen, aber das ist spekulativ.
-                        // Wir setzen es auf ExitDate (1 Tag Aufenthalt) als Fallback
-                        entryDate = new Date(exitDate);
-                        isEstimated = true;
-                    }
-                }
-
-                // 2. FEHLENDE AUSREISE
-                // Logik: Wenn Ausreise fehlt, nimm Einreise der nächsten Zeile ODER Kontrolldatum
-                if (entryDate && !exitDate) {
-                    isEstimated = true;
-                    // Gibt es eine nächste Zeile mit Einreise?
-                    if (i + 1 < rawRows.length && rawRows[i+1].entryDate) {
-                        exitDate = new Date(rawRows[i+1].entryDate);
-                    } else {
-                        // Letzter Eintrag oder kein Nachfolger -> Bis zum Kontrolldatum
-                        exitDate = new Date(controlDate);
-                    }
-                }
-
-                // Falls wir nun beide Daten haben
-                if (entryDate && exitDate) {
-                    // Validierung: Ausreise darf nicht vor Einreise sein
-                    if (exitDate < entryDate) {
-                        exitDate = new Date(entryDate); 
-                    }
-
-                    // Dauer berechnen
-                    const timeDiff = exitDate.getTime() - entryDate.getTime();
-                    const days = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
-
-                    stayPeriods.push({
-                        number: stayPeriods.length + 1,
-                        entryDate: entryDate,
-                        exitDate: exitDate,
-                        days: days,
-                        estimated: isEstimated, // Markierung für rote Umrandung
-                        originalIndex: row.index
-                    });
-
-                    if (isEstimated) hasIncomplete = true;
-                }
-            }
-
-            displayCalculatedStays(stayPeriods);
-            return { stayPeriods, hasIncomplete };
-        }
-
-        // --- ÜBERARBEITETE ANZEIGE: Rote Umrandung hinzufügen ---
-        function displayCalculatedStays(stayPeriods) {
-            const containerId = currentMode === 'schengen' ? 'schengenCalculatedStays' : 'visaCalculatedStays';
-            const container = document.getElementById(containerId);
-
-            if (!container) return;
-
-            if (stayPeriods.length === 0) {
-                container.innerHTML = `
-                    <div class="calculated-stays-empty">
-                        <p>${translations[currentLanguage].emptyStaysMessage}</p>
-                    </div>
-                `;
-                return;
-            }
-
-            let html = `
-                <div class="calculated-stays">
-                    <h3>${translations[currentLanguage].calculatedStaysTitle}</h3>
-                    <div class="stays-list">
-            `;
-
-            stayPeriods.forEach(stay => {
-                // Klasse 'stay-incomplete' hinzufügen, wenn Daten geschätzt wurden
-                const incompleteClass = stay.estimated ? 'stay-incomplete' : '';
-                const incompleteBadge = stay.estimated 
-                    ? `<span class="stay-incomplete-badge">⚠️ Daten unvollständig (ergänzt)</span>` 
-                    : '';
-
-                html += `
-                    <div class="calculated-stay-item ${incompleteClass}">
-                        <div class="stay-number">${stay.number}</div>
-                        <div class="stay-details">
-                            <div class="stay-period">
-                                ${stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')} → 
-                                ${stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}
-                            </div>
-                            <div class="stay-duration">
-                                ${stay.days} ${stay.days === 1 ? translations[currentLanguage].daysText : translations[currentLanguage].daysTextPlural}
-                            </div>
-                            ${incompleteBadge}
-                        </div>
-                    </div>
-                `;
-            });
-
-            html += `
-                    </div>
-                </div>
-            `;
-
-            container.innerHTML = html;
         }
 
         function generateStayEntries() {
             const containerId = currentMode === 'schengen' ? 'schengenStayEntries' : 'visaStayEntries';
             const container = document.getElementById(containerId);
-
             const savedData = saveCurrentInputs();
 
             container.innerHTML = '';
 
-            let entriesHTML = `
-                <div class="entries-section">
-                    <h3>🛬 ${translations[currentLanguage].entryHeading}</h3>
-                    <div class="entries-grid">
-            `;
-
+            let entriesHTML = `<div class="entries-section"><h3>🛬 ${translations[currentLanguage].entryHeading}</h3><div class="entries-grid">`;
             for (let i = 1; i <= visibleEntries; i++) {
-                const deleteButton = i > 1 ? `
-                    <button type="button" class="delete-entry-btn" onclick="removeEntry(${i})" title="${translations[currentLanguage].entryLabel} entfernen">
-                        🗑️
-                    </button>
-                ` : '';
-
-                entriesHTML += `
-                    <div class="entry-item">
-                        <div class="entry-header">
-                            <label>${translations[currentLanguage].entryLabel} ${i}</label>
-                            ${deleteButton}
-                        </div>
-                        <input type="date" id="${currentMode}Entry${i}" onchange="calculateStayPeriods()">
-                    </div>
-                `;
+                const deleteButton = i > 1 ? `<button type="button" class="delete-entry-btn" onclick="removeEntry(${i})" title="Entfernen">🗑️</button>` : '';
+                entriesHTML += `<div class="entry-item"><div class="entry-header"><label>${translations[currentLanguage].entryLabel} ${i}</label>${deleteButton}</div><input type="date" id="${currentMode}Entry${i}" onchange="calculateStayPeriods()"></div>`;
             }
-
             if (visibleEntries < 10) {
-                entriesHTML += `
-                    <div class="add-entry-section">
-                        <button type="button" class="add-entry-btn" onclick="addEntry()">
-                            ${translations[currentLanguage].addEntryBtn}
-                        </button>
-                    </div>
-                `;
+                entriesHTML += `<div class="add-entry-section"><button type="button" class="add-entry-btn" onclick="addEntry()">${translations[currentLanguage].addEntryBtn}</button></div>`;
             }
+            entriesHTML += `</div></div>`;
 
-            entriesHTML += `
-                    </div>
-                </div>
-            `;
-
-            let exitsHTML = `
-                <div class="exits-section">
-                    <h3>🛫 ${translations[currentLanguage].exitHeading}</h3>
-                    <div class="exits-grid">
-            `;
-
+            let exitsHTML = `<div class="exits-section"><h3>🛫 ${translations[currentLanguage].exitHeading}</h3><div class="exits-grid">`;
             for (let i = 1; i <= visibleExits; i++) {
-                const deleteButton = i > 1 ? `
-                    <button type="button" class="delete-exit-btn" onclick="removeExit(${i})" title="${translations[currentLanguage].exitLabel} entfernen">
-                        🗑️
-                    </button>
-                ` : '';
-
-                exitsHTML += `
-                    <div class="exit-item">
-                        <div class="exit-header">
-                            <label>${translations[currentLanguage].exitLabel} ${i}</label>
-                            ${deleteButton}
-                        </div>
-                        <input type="date" id="${currentMode}Exit${i}" onchange="calculateStayPeriods()">
-                    </div>
-                `;
+                const deleteButton = i > 1 ? `<button type="button" class="delete-exit-btn" onclick="removeExit(${i})" title="Entfernen">🗑️</button>` : '';
+                exitsHTML += `<div class="exit-item"><div class="exit-header"><label>${translations[currentLanguage].exitLabel} ${i}</label>${deleteButton}</div><input type="date" id="${currentMode}Exit${i}" onchange="calculateStayPeriods()"></div>`;
             }
-
             if (visibleExits < 10) {
-                exitsHTML += `
-                    <div class="add-exit-section">
-                        <button type="button" class="add-exit-btn" onclick="addExit()">
-                            ${translations[currentLanguage].addExitBtn}
-                        </button>
-                    </div>
-                `;
+                exitsHTML += `<div class="add-exit-section"><button type="button" class="add-exit-btn" onclick="addExit()">${translations[currentLanguage].addExitBtn}</button></div>`;
             }
+            exitsHTML += `</div></div>`;
 
-            exitsHTML += `
-                    </div>
-                </div>
-            `;
-
-            const calculatedStaysHTML = `
-                <div id="${currentMode}CalculatedStays" class="calculated-stays-container">
-                </div>
-            `;
-
+            const calculatedStaysHTML = `<div id="${currentMode}CalculatedStays" class="calculated-stays-container"></div>`;
             container.innerHTML = entriesHTML + exitsHTML + calculatedStaysHTML;
 
-            setTimeout(() => {
-                restoreInputs(savedData);
-            }, 10);
+            setTimeout(() => { restoreInputs(savedData); }, 10);
         }
 
         function addEntry() {
@@ -1922,9 +1406,7 @@
         function removeEntry(entryIndex) {
             if (visibleEntries > 1 && entryIndex > 1) {
                 const savedData = saveCurrentInputs();
-
                 delete savedData[`${currentMode}Entry${entryIndex}`];
-
                 const adjustedData = {};
                 for (const [key, value] of Object.entries(savedData)) {
                     const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
@@ -1932,35 +1414,22 @@
                         const mode = match[1];
                         const type = match[2];
                         const index = parseInt(match[3]);
-
-                        if (type === 'Entry') {
-                            if (index < entryIndex) {
-                                adjustedData[key] = value;
-                            } else if (index > entryIndex) {
-                                const newKey = `${mode}${type}${index - 1}`;
-                                adjustedData[newKey] = value;
-                            }
-                        } else {
-                            adjustedData[key] = value;
-                        }
+                        if (mode === currentMode && type === 'Entry') {
+                            if (index < entryIndex) adjustedData[key] = value;
+                            else if (index > entryIndex) adjustedData[`${mode}${type}${index - 1}`] = value;
+                        } else adjustedData[key] = value;
                     }
                 }
-
                 visibleEntries--;
                 generateStayEntries();
-
-                setTimeout(() => {
-                    restoreInputs(adjustedData);
-                }, 10);
+                setTimeout(() => restoreInputs(adjustedData), 10);
             }
         }
 
         function removeExit(exitIndex) {
             if (visibleExits > 1 && exitIndex > 1) {
                 const savedData = saveCurrentInputs();
-
                 delete savedData[`${currentMode}Exit${exitIndex}`];
-
                 const adjustedData = {};
                 for (const [key, value] of Object.entries(savedData)) {
                     const match = key.match(/(\w+)(Entry|Exit)(\d+)/);
@@ -1968,88 +1437,127 @@
                         const mode = match[1];
                         const type = match[2];
                         const index = parseInt(match[3]);
-
-                        if (type === 'Exit') {
-                            if (index < exitIndex) {
-                                adjustedData[key] = value;
-                            } else if (index > exitIndex) {
-                                const newKey = `${mode}${type}${index - 1}`;
-                                adjustedData[newKey] = value;
-                            }
-                        } else {
-                            adjustedData[key] = value;
-                        }
+                        if (mode === currentMode && type === 'Exit') {
+                            if (index < exitIndex) adjustedData[key] = value;
+                            else if (index > exitIndex) adjustedData[`${mode}${type}${index - 1}`] = value;
+                        } else adjustedData[key] = value;
                     }
                 }
-
                 visibleExits--;
                 generateStayEntries();
-
-                setTimeout(() => {
-                    restoreInputs(adjustedData);
-                }, 10);
+                setTimeout(() => restoreInputs(adjustedData), 10);
             }
         }
 
-        // --- ÜBERARBEITETE SCHENGEN BERECHNUNG: Nutzt countUniqueDays ---
+        // ==========================================
+        // 4. LOGIC FUNCTIONS (Calculation)
+        // ==========================================
+
+        function calculateStayPeriods() {
+            const stayPeriods = [];
+            let hasIncomplete = false;
+            const controlDate = getControlDate();
+
+            let rawRows = [];
+            for (let i = 1; i <= 10; i++) {
+                const entryInput = document.getElementById(`${currentMode}Entry${i}`);
+                const exitInput = document.getElementById(`${currentMode}Exit${i}`);
+                if ((entryInput && entryInput.value) || (exitInput && exitInput.value)) {
+                    rawRows.push({
+                        index: i,
+                        entryDate: entryInput.value ? new Date(entryInput.value) : null,
+                        exitDate: exitInput.value ? new Date(exitInput.value) : null
+                    });
+                }
+            }
+
+            rawRows.sort((a, b) => {
+                if(a.entryDate && b.entryDate) return a.entryDate - b.entryDate;
+                return a.index - b.index;
+            });
+
+            for (let i = 0; i < rawRows.length; i++) {
+                let row = rawRows[i];
+                let entryDate = row.entryDate;
+                let exitDate = row.exitDate;
+                let isEstimated = false;
+
+                // Logik für fehlende Einreise
+                if (!entryDate && exitDate) {
+                    if (i > 0 && stayPeriods[i-1].exitDate) {
+                        entryDate = new Date(stayPeriods[i-1].exitDate);
+                        isEstimated = true;
+                    } else {
+                        entryDate = new Date(exitDate);
+                        isEstimated = true;
+                    }
+                }
+
+                // Logik für fehlende Ausreise
+                if (entryDate && !exitDate) {
+                    isEstimated = true;
+                    if (i + 1 < rawRows.length && rawRows[i+1].entryDate) {
+                        exitDate = new Date(rawRows[i+1].entryDate);
+                    } else {
+                        exitDate = new Date(controlDate);
+                    }
+                }
+
+                if (entryDate && exitDate) {
+                    if (exitDate < entryDate) exitDate = new Date(entryDate);
+                    const timeDiff = exitDate.getTime() - entryDate.getTime();
+                    const days = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
+
+                    stayPeriods.push({
+                        number: stayPeriods.length + 1,
+                        entryDate: entryDate,
+                        exitDate: exitDate,
+                        days: days,
+                        estimated: isEstimated,
+                        originalIndex: row.index
+                    });
+                    if (isEstimated) hasIncomplete = true;
+                }
+            }
+
+            displayCalculatedStays(stayPeriods);
+            return { stayPeriods, hasIncomplete };
+        }
+
         function calculateSchengen() {
             const { stayPeriods, hasIncomplete } = calculateStayPeriods();
-
-            // Mapping auf vereinfachte Struktur
-            const stays = stayPeriods.map(period => ({
-                start: period.entryDate,
-                end: period.exitDate
-            }));
+            const stays = stayPeriods.map(period => ({ start: period.entryDate, end: period.exitDate }));
 
             const referenceDate = getControlDate();
             const period180Start = new Date(referenceDate);
-            period180Start.setDate(period180Start.getDate() - 180); // Genauer: Rückrechnung um 180 Tage (exklusiv heute? Nein, inklusiv)
-            // Die 180-Tage-Periode endet am referenceDate. Sie beginnt referenceDate - 179 Tage.
-            // Schengen Rechner nehmen oft referenceDate - 180 Tage als Startpunkt des Fensters zur Prüfung.
-            
-            // NEU: Berechnung der eindeutigen Tage im Fenster über Set (keine Doppelzählung)
+            period180Start.setDate(period180Start.getDate() - 180);
+
+            // Benutze countUniqueDays
             const daysInPeriod = countUniqueDays(stays, period180Start, referenceDate);
-            
             const remainingDays = 90 - daysInPeriod;
             const isLegal = daysInPeriod <= 90;
 
-            const calculationPeriod = {
-                start: period180Start,
-                end: referenceDate,
-                mode: 'schengen'
-            };
+            const calculationPeriod = { start: period180Start, end: referenceDate, mode: 'schengen' };
 
             let allowedUntil = null;
             if (remainingDays > 0 && isLegal) {
-                // Wir müssen vorsichtig sein. "Erlaubt bis" ist komplex bei gleitenden Fenstern.
-                // Vereinfachte Annahme für User: Ab ReferenceDate + RemainingDays.
                 allowedUntil = new Date(referenceDate);
                 allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1);
             }
 
             let nextEntryDate = null;
             if (!isLegal || remainingDays <= 0) {
-                // Einfache Heuristik für nächsten Einreisetag:
-                // Wann wird der älteste Tag im Fenster "frei"?
-                // Wir nehmen den ersten Tag des relevantesten Aufenthalts + 180 Tage.
-                // (Dies ist eine Vereinfachung, eine exakte Berechnung der "Wiedereinreise" erfordert Iteration in die Zukunft)
-                
-                // Filtere Stays die im Fenster liegen
                 const relevantStays = stays.filter(s => s.end >= period180Start && s.start <= referenceDate);
                 relevantStays.sort((a,b) => a.start - b.start);
-                
                 if (relevantStays.length > 0) {
-                    // Der Tag, an dem der erste Aufenthalt "verfällt" (aus dem 180 Tage Fenster fällt)
                     const firstRelevantEntry = relevantStays[0].start < period180Start ? period180Start : relevantStays[0].start;
                     nextEntryDate = new Date(firstRelevantEntry);
                     nextEntryDate.setDate(nextEntryDate.getDate() + 180);
                 }
             }
-
             displaySchengenResults(daysInPeriod, remainingDays, isLegal, allowedUntil, nextEntryDate, referenceDate, calculationPeriod, hasIncomplete);
         }
 
-        // --- ÜBERARBEITETE VISUM BERECHNUNG: Nutzt countUniqueDays ---
         function calculateVisa() {
             const visaStart = document.getElementById('visaStart').value;
             const visaEnd = document.getElementById('visaEnd').value;
@@ -2070,78 +1578,74 @@
             }
 
             const { stayPeriods, hasIncomplete } = calculateStayPeriods();
-
-            // Mapping
-            const stays = stayPeriods.map(period => ({
-                start: period.entryDate,
-                end: period.exitDate
-            }));
+            const stays = stayPeriods.map(period => ({ start: period.entryDate, end: period.exitDate }));
 
             let entriesUsed = stayPeriods.length;
             let violations = [];
 
-            // Prüfen ob Aufenthalte außerhalb des Visums liegen
             stayPeriods.forEach((stay, index) => {
                 if (stay.entryDate < visaStartDate || stay.exitDate > visaEndDate) {
                     violations.push(`${translations[currentLanguage].stayLabel} ${index + 1}: ${translations[currentLanguage].errorStayOutsideVisa}`);
                 }
             });
 
-            // NEU: Eindeutige Tage zählen (verhindert Doppelzählung)
-            // Nur Tage zählen, die auch innerhalb des Visums liegen
             const totalDays = countUniqueDays(stays, visaStartDate, visaEndDate);
-
             let isCompliant = true;
 
             if (allowedEntries !== 'multi' && entriesUsed > parseInt(allowedEntries)) {
                 violations.push(`${translations[currentLanguage].tooManyEntries}: ${entriesUsed}/${allowedEntries}`);
                 isCompliant = false;
             }
-
             if (totalDays > allowedDays) {
                 violations.push(`${translations[currentLanguage].daysOverLimit}: ${totalDays}/${allowedDays}`);
                 isCompliant = false;
             }
-            
-            if (violations.length > 0) {
-                isCompliant = false;
-            }
+            if (violations.length > 0) isCompliant = false;
 
             const remainingDays = Math.max(0, allowedDays - totalDays);
             const controlDate = getControlDate();
-            
-            // "Erlaubt bis" Berechnung
             let allowedUntil = null;
             if (remainingDays > 0) {
-                 // Startpunkt ist entweder ControlDate oder VisaStart (falls ControlDate davor liegt)
                 let effectiveStart = controlDate < visaStartDate ? visaStartDate : controlDate;
-                
-                // Addiere verbleibende Tage
                 allowedUntil = new Date(effectiveStart);
-                allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1); // -1 da der Starttag mitzählt
-
-                // Darf nicht länger als Visumende sein
-                if (allowedUntil > visaEndDate) {
-                    allowedUntil = visaEndDate;
-                }
+                allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1);
+                if (allowedUntil > visaEndDate) allowedUntil = visaEndDate;
             }
 
-            calculationPeriodData = {
-                start: visaStartDate,
-                end: visaEndDate,
-                mode: 'visa'
-            };
-
+            calculationPeriodData = { start: visaStartDate, end: visaEndDate, mode: 'visa' };
             displayVisaResults(totalDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStartDate, visaEndDate, allowedUntil, controlDate, hasIncomplete);
+        }
+
+        // ==========================================
+        // 5. DISPLAY & EXPORT FUNCTIONS
+        // ==========================================
+
+        function displayCalculatedStays(stayPeriods) {
+            const containerId = currentMode === 'schengen' ? 'schengenCalculatedStays' : 'visaCalculatedStays';
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            if (stayPeriods.length === 0) {
+                container.innerHTML = `<div class="calculated-stays-empty"><p>${translations[currentLanguage].emptyStaysMessage}</p></div>`;
+                return;
+            }
+
+            let html = `<div class="calculated-stays"><h3>${translations[currentLanguage].calculatedStaysTitle}</h3><div class="stays-list">`;
+            stayPeriods.forEach(stay => {
+                const incompleteClass = stay.estimated ? 'stay-incomplete' : '';
+                const incompleteBadge = stay.estimated ? `<span class="stay-incomplete-badge">⚠️ Daten unvollständig (ergänzt)</span>` : '';
+                html += `<div class="calculated-stay-item ${incompleteClass}"><div class="stay-number">${stay.number}</div><div class="stay-details"><div class="stay-period">${stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')} → ${stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}</div><div class="stay-duration">${stay.days} ${stay.days === 1 ? translations[currentLanguage].daysText : translations[currentLanguage].daysTextPlural}</div>${incompleteBadge}</div></div>`;
+            });
+            html += `</div></div>`;
+            container.innerHTML = html;
         }
 
         function displaySchengenResults(usedDays, remainingDays, isLegal, allowedUntil, nextEntryDate, referenceDate, calculationPeriod, hasIncomplete) {
             calculationPeriodData = calculationPeriod;
-
             const resultsDiv = document.getElementById('results');
             const resultsList = document.getElementById('resultsList');
-
             let statusText, statusClass;
+
             if (isLegal && remainingDays > 0) {
                 statusText = `${translations[currentLanguage].statusLegal} (${remainingDays} ${translations[currentLanguage].daysTextPlural} ${translations[currentLanguage].remaining})`;
                 statusClass = 'status-legal';
@@ -2154,48 +1658,12 @@
             }
 
             const locale = currentLanguage === 'de' ? 'de-DE' : 'en-GB';
-            const allowedUntilText = allowedUntil
-                ? allowedUntil.toLocaleDateString(locale)
-                : '—';
+            const allowedUntilText = allowedUntil ? allowedUntil.toLocaleDateString(locale) : '—';
 
-            resultsList.innerHTML = `
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].usedDaysLabel}</span>
-                    <span class="result-value">${usedDays} / 90 ${translations[currentLanguage].daysTextPlural}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span>
-                    <span class="result-value">${Math.max(0, remainingDays)} ${translations[currentLanguage].daysTextPlural}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span>
-                    <span class="result-value">${allowedUntilText}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].statusLabel}</span>
-                    <span class="result-value ${statusClass}">${statusText}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].calculationDateLabel}</span>
-                    <span class="result-value">${referenceDate.toLocaleDateString(locale)}</span>
-                </div>
-            `;
+            resultsList.innerHTML = `<div class="result-item"><span class="result-label">${translations[currentLanguage].usedDaysLabel}</span><span class="result-value">${usedDays} / 90 ${translations[currentLanguage].daysTextPlural}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span><span class="result-value">${Math.max(0, remainingDays)} ${translations[currentLanguage].daysTextPlural}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span><span class="result-value">${allowedUntilText}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].statusLabel}</span><span class="result-value ${statusClass}">${statusText}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].calculationDateLabel}</span><span class="result-value">${referenceDate.toLocaleDateString(locale)}</span></div>`;
 
-            if (nextEntryDate) {
-                resultsList.innerHTML += `
-                    <div class="next-entry-date">
-                        ${translations[currentLanguage].nextEntryText} <strong>${nextEntryDate.toLocaleDateString(locale)}</strong>
-                    </div>
-                `;
-            }
-
-            if (hasIncomplete) {
-                resultsList.innerHTML += `
-                    <div class="next-entry-date">
-                        ⚠️ ${translations[currentLanguage].incompleteDataWarning}
-                    </div>
-                `;
-            }
+            if (nextEntryDate) resultsList.innerHTML += `<div class="next-entry-date">${translations[currentLanguage].nextEntryText} <strong>${nextEntryDate.toLocaleDateString(locale)}</strong></div>`;
+            if (hasIncomplete) resultsList.innerHTML += `<div class="next-entry-date">⚠️ ${translations[currentLanguage].incompleteDataWarning}</div>`;
 
             resultsDiv.classList.remove('hidden');
             resultsDiv.scrollIntoView({ behavior: 'smooth' });
@@ -2204,63 +1672,16 @@
         function displayVisaResults(usedDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStart, visaEnd, allowedUntil, controlDate, hasIncomplete) {
             const resultsDiv = document.getElementById('results');
             const resultsList = document.getElementById('resultsList');
-
             const statusText = isCompliant ? translations[currentLanguage].statusVisaValid : translations[currentLanguage].statusVisaViolation;
             const statusClass = isCompliant ? 'status-legal' : 'status-illegal';
             const entriesText = allowedEntries === 'multi' ? 'MULTI' : allowedEntries;
-
             const locale = currentLanguage === 'de' ? 'de-DE' : 'en-GB';
-            const allowedUntilText = allowedUntil
-                ? allowedUntil.toLocaleDateString(locale)
-                : '—';
+            const allowedUntilText = allowedUntil ? allowedUntil.toLocaleDateString(locale) : '—';
 
-            resultsList.innerHTML = `
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].usedDaysVisaLabel}</span>
-                    <span class="result-value">${usedDays} / ${allowedDays} ${translations[currentLanguage].daysTextPlural}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span>
-                    <span class="result-value">${remainingDays} ${translations[currentLanguage].daysTextPlural}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span>
-                    <span class="result-value">${allowedUntilText}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].entriesUsedLabel}</span>
-                    <span class="result-value">${entriesUsed} / ${entriesText}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].statusLabel}</span>
-                    <span class="result-value ${statusClass}">${statusText}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">🗓️ ${translations[currentLanguage].visaPeriodLabel}</span>
-                    <span class="result-value">${visaStart.toLocaleDateString(locale)} - ${visaEnd.toLocaleDateString(locale)}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">${translations[currentLanguage].calculationDateLabel}</span>
-                    <span class="result-value">${controlDate.toLocaleDateString(locale)}</span>
-                </div>
-            `;
+            resultsList.innerHTML = `<div class="result-item"><span class="result-label">${translations[currentLanguage].usedDaysVisaLabel}</span><span class="result-value">${usedDays} / ${allowedDays} ${translations[currentLanguage].daysTextPlural}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span><span class="result-value">${remainingDays} ${translations[currentLanguage].daysTextPlural}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span><span class="result-value">${allowedUntilText}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].entriesUsedLabel}</span><span class="result-value">${entriesUsed} / ${entriesText}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].statusLabel}</span><span class="result-value ${statusClass}">${statusText}</span></div><div class="result-item"><span class="result-label">🗓️ ${translations[currentLanguage].visaPeriodLabel}</span><span class="result-value">${visaStart.toLocaleDateString(locale)} - ${visaEnd.toLocaleDateString(locale)}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].calculationDateLabel}</span><span class="result-value">${controlDate.toLocaleDateString(locale)}</span></div>`;
 
-            if (violations.length > 0) {
-                resultsList.innerHTML += `
-                    <div class="next-entry-date">
-                        <strong>⚠️ ${translations[currentLanguage].violationsTitle}:</strong><br>
-                        ${violations.join('<br>')}
-                    </div>
-                `;
-            }
-
-            if (hasIncomplete) {
-                resultsList.innerHTML += `
-                    <div class="next-entry-date">
-                        ⚠️ ${translations[currentLanguage].incompleteDataWarning}
-                    </div>
-                `;
-            }
+            if (violations.length > 0) resultsList.innerHTML += `<div class="next-entry-date"><strong>⚠️ ${translations[currentLanguage].violationsTitle}:</strong><br>${violations.join('<br>')}</div>`;
+            if (hasIncomplete) resultsList.innerHTML += `<div class="next-entry-date">⚠️ ${translations[currentLanguage].incompleteDataWarning}</div>`;
 
             resultsDiv.classList.remove('hidden');
             resultsDiv.scrollIntoView({ behavior: 'smooth' });
@@ -2268,7 +1689,6 @@
 
         function collectEnteredStays() {
             const { stayPeriods } = calculateStayPeriods();
-
             return stayPeriods.map(stay => ({
                 number: stay.number,
                 startDate: stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
@@ -2278,71 +1698,37 @@
         }
 
         function printResults() {
-    try {
-        const resultsDiv = document.getElementById('results');
-        const resultsList = document.getElementById('resultsList');
+            try {
+                const resultsDiv = document.getElementById('results');
+                const resultsList = document.getElementById('resultsList');
+                if (!resultsDiv || resultsDiv.classList.contains('hidden') || !resultsList) {
+                    alert(currentLanguage === 'de' ? 'Bitte zuerst eine Berechnung durchführen.' : 'Please run a calculation first.');
+                    return;
+                }
+                const enteredStays = collectEnteredStays();
+                const now = getTodayMEZ();
+                const printDate = now.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') + ' ' + now.toLocaleTimeString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
+                const printTitle = currentMode === 'schengen'
+                    ? (currentLanguage === 'de' ? 'SCHENGEN AUFENTHALTSBERECHNUNG (90/180 Tage)' : 'SCHENGEN STAY CALCULATION (90/180 days)')
+                    : (currentLanguage === 'de' ? 'VISUM AUFENTHALTSBERECHNUNG' : 'VISA STAY CALCULATION');
 
-        // Wenn noch nichts berechnet wurde
-        if (!resultsDiv || resultsDiv.classList.contains('hidden') || !resultsList) {
-            alert(currentLanguage === 'de'
-                ? 'Bitte zuerst eine Berechnung durchführen.'
-                : 'Please run a calculation first.');
-            return;
+                const printHTML = createPrintHTML(printTitle, printDate, resultsList.innerHTML, enteredStays, calculationPeriodData);
+                const printWindow = window.open('', '_blank', 'width=900,height=650,scrollbars=yes');
+                if (!printWindow) { showTextExport(); return; }
+                printWindow.document.open();
+                printWindow.document.write(printHTML);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => { printWindow.print(); }, 300);
+            } catch (error) {
+                console.error('Print error:', error);
+                showTextExport();
+            }
         }
-
-        const enteredStays = collectEnteredStays();
-
-        const now = getTodayMEZ();
-        const printDate = now.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') +
-                         ' ' + now.toLocaleTimeString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
-
-        const printTitle = currentMode === 'schengen'
-            ? (currentLanguage === 'de'
-                ? 'SCHENGEN AUFENTHALTSBERECHNUNG (90/180 Tage)'
-                : 'SCHENGEN STAY CALCULATION (90/180 days)')
-            : (currentLanguage === 'de'
-                ? 'VISUM AUFENTHALTSBERECHNUNG'
-                : 'VISA STAY CALCULATION');
-
-        const printHTML = createPrintHTML(
-            printTitle,
-            printDate,
-            resultsList.innerHTML,
-            enteredStays,
-            calculationPeriodData
-        );
-
-        const printWindow = window.open('', '_blank', 'width=900,height=650,scrollbars=yes');
-
-        if (!printWindow) {
-            // Popup geblockt → Fallback Text-Export
-            showTextExport();
-            return;
-        }
-
-        // WICHTIG: erst öffnen, dann schreiben, dann schließen
-        printWindow.document.open();
-        printWindow.document.write(printHTML);
-        printWindow.document.close();
-
-        // Fokus setzen & mit kleinem Delay drucken (hilft bei Chrome/Firefox)
-        printWindow.focus();
-        setTimeout(() => {
-            printWindow.print();
-            // Fenster optional automatisch schließen
-            // printWindow.close();
-        }, 300);
-
-    } catch (error) {
-        console.error('Print error:', error);
-        showTextExport();
-    }
-}
 
         function createPrintHTML(title, date, resultsHTML, enteredStays, calculationPeriod) {
             const disclaimerText = translations[currentLanguage].disclaimer;
             const footerText = translations[currentLanguage].createdWith;
-
             const staysOverviewTitle = translations[currentLanguage].stayOverviewTitle;
             const arrivalLabel = translations[currentLanguage].arrivalLabel;
             const departureLabel = translations[currentLanguage].departureLabel;
@@ -2352,7 +1738,6 @@
             if (calculationPeriod) {
                 const periodStart = calculationPeriod.start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
                 const periodEnd = calculationPeriod.end.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
-
                 let periodTitle, periodNote;
                 if (calculationPeriod.mode === 'schengen') {
                     periodTitle = currentLanguage === 'de' ? 'Berechnungszeitraum (180 Tage)' : 'Calculation Period (180 days)';
@@ -2361,226 +1746,32 @@
                     periodTitle = currentLanguage === 'de' ? 'Visum-Gültigkeitszeitraum' : 'Visa Validity Period';
                     periodNote = currentLanguage === 'de' ? 'Alle Aufenthalte müssen innerhalb dieses Zeitraums liegen.' : 'All stays must be within this period.';
                 }
-
-                calculationPeriodHTML = `
-                    <div class="calculation-period">
-                        <h2>${periodTitle}</h2>
-                        <div class="period-info">
-                            <strong>${periodStart} → ${periodEnd}</strong>
-                            <p>${periodNote}</p>
-                        </div>
-                    </div>
-                `;
+                calculationPeriodHTML = `<div class="calculation-period"><h2>${periodTitle}</h2><div class="period-info"><strong>${periodStart} → ${periodEnd}</strong><p>${periodNote}</p></div></div>`;
             }
 
             let staysTableHTML = '';
             if (enteredStays.length > 0) {
-                staysTableHTML = `
-                    <div class="stays-overview">
-                        <h2>${staysOverviewTitle}</h2>
-                        <table class="stays-table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>${arrivalLabel}</th>
-                                    <th>${departureLabel}</th>
-                                    <th>${daysTextPlural}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-
-                enteredStays.forEach(stay => {
-                    staysTableHTML += `
-                        <tr>
-                            <td>${stay.number}</td>
-                            <td>${stay.startDate}</td>
-                            <td>${stay.endDate}</td>
-                            <td>${stay.days}</td>
-                        </tr>
-                    `;
-                });
-
-                staysTableHTML += `
-                            </tbody>
-                        </table>
-                    </div>
-                `;
+                staysTableHTML = `<div class="stays-overview"><h2>${staysOverviewTitle}</h2><table class="stays-table"><thead><tr><th>#</th><th>${arrivalLabel}</th><th>${departureLabel}</th><th>${daysTextPlural}</th></tr></thead><tbody>`;
+                enteredStays.forEach(stay => { staysTableHTML += `<tr><td>${stay.number}</td><td>${stay.startDate}</td><td>${stay.endDate}</td><td>${stay.days}</td></tr>`; });
+                staysTableHTML += `</tbody></table></div>`;
             }
 
-            return `
-<!DOCTYPE html>
-<html lang="${currentLanguage}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 12pt;
-            line-height: 1.4;
-            color: black;
-            margin: 0;
-            padding: 20px;
-            background: white;
-        }
-        .header {
-            text-align: center;
-            border-bottom: 3px solid black;
-            padding-bottom: 15px;
-            margin-bottom: 30px;
-        }
-        .header h1 {
-            font-size: 18pt;
-            font-weight: bold;
-            margin: 0 0 10px 0;
-        }
-        .header .date {
-            font-size: 11pt;
-            color: #666;
-        }
-        .calculation-period {
-            background: #f0f8ff;
-            border: 2px solid #4169e1;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 25px;
-        }
-        .calculation-period h2 {
-            font-size: 14pt;
-            font-weight: bold;
-            margin: 0 0 10px 0;
-            color: #1e3a8a;
-        }
-        .period-info {
-            text-align: center;
-        }
-        .period-info strong {
-            font-size: 13pt;
-            color: #1e40af;
-            display: block;
-            margin-bottom: 5px;
-        }
-        .period-info p {
-            font-size: 10pt;
-            color: #666;
-            margin: 0;
-            font-style: italic;
-        }
-        .stays-overview {
-            margin-bottom: 30px;
-        }
-        .stays-overview h2 {
-            font-size: 14pt;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #333;
-            border-bottom: 2px solid #ccc;
-            padding-bottom: 8px;
-        }
-        .stays-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        .stays-table th, .stays-table td {
-            border: 1px solid #999;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        .stays-table th {
-            background: #f5f5f5;
-            font-weight: bold;
-            color: #333;
-        }
-        .stays-table td:first-child {
-            text-align: center;
-            font-weight: bold;
-        }
-        .stays-table td:last-child {
-            text-align: center;
-        }
-        .result-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #ccc;
-        }
-        .result-label {
-            font-weight: 600;
-            color: #333;
-            flex: 1;
-        }
-        .result-value {
-            font-weight: bold;
-            text-align: right;
-            flex: 1;
-        }
-        .status-legal { color: #2d5a2d; }
-        .status-illegal { color: #8b0000; }
-        .status-warning { color: #8b6914; }
-        .next-entry-date {
-            background: #f5f5f5;
-            border: 1px solid #999;
-            padding: 15px;
-            margin: 20px 0;
-            text-align: center;
-            border-radius: 5px;
-        }
-        .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #ccc;
-            font-size: 9pt;
-            color: #666;
-            text-align: center;
-        }
-        .disclaimer {
-            font-style: italic;
-            margin-bottom: 10px;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>${title}</h1>
-        <div class="date">${translations[currentLanguage].createdOn}: ${date}</div>
-    </div>
-
-    ${calculationPeriodHTML}
-
-    ${staysTableHTML}
-
-    <div class="results">
-        ${resultsHTML}
-    </div>
-
-    <div class="footer">
-        <div class="disclaimer">${disclaimerText}</div>
-        <div>${footerText} | ${translations[currentLanguage].pageInfo}</div>
-    </div>
-</body>
-</html>`;
+            return `<!DOCTYPE html><html lang="${currentLanguage}"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title><style>body {font-family: Arial, sans-serif;font-size: 12pt;line-height: 1.4;color: black;margin: 0;padding: 20px;background: white;}.header {text-align: center;border-bottom: 3px solid black;padding-bottom: 15px;margin-bottom: 30px;}.header h1 {font-size: 18pt;font-weight: bold;margin: 0 0 10px 0;}.header .date {font-size: 11pt;color: #666;}.calculation-period {background: #f0f8ff;border: 2px solid #4169e1;border-radius: 8px;padding: 15px;margin-bottom: 25px;}.calculation-period h2 {font-size: 14pt;font-weight: bold;margin: 0 0 10px 0;color: #1e3a8a;}.period-info {text-align: center;}.period-info strong {font-size: 13pt;color: #1e40af;display: block;margin-bottom: 5px;}.period-info p {font-size: 10pt;color: #666;margin: 0;font-style: italic;}.stays-overview {margin-bottom: 30px;}.stays-overview h2 {font-size: 14pt;font-weight: bold;margin-bottom: 15px;color: #333;border-bottom: 2px solid #ccc;padding-bottom: 8px;}.stays-table {width: 100%;border-collapse: collapse;margin-bottom: 20px;}.stays-table th, .stays-table td {border: 1px solid #999;padding: 8px 12px;text-align: left;}.stays-table th {background: #f5f5f5;font-weight: bold;color: #333;}.stays-table td:first-child {text-align: center;font-weight: bold;}.stays-table td:last-child {text-align: center;}.result-item {display: flex;justify-content: space-between;padding: 10px 0;border-bottom: 1px solid #ccc;}.result-label {font-weight: 600;color: #333;flex: 1;}.result-value {font-weight: bold;text-align: right;flex: 1;}.status-legal { color: #2d5a2d; }.status-illegal { color: #8b0000; }.status-warning { color: #8b6914; }.next-entry-date {background: #f5f5f5;border: 1px solid #999;padding: 15px;margin: 20px 0;text-align: center;border-radius: 5px;}.footer {margin-top: 40px;padding-top: 20px;border-top: 1px solid #ccc;font-size: 9pt;color: #666;text-align: center;}.disclaimer {font-style: italic;margin-bottom: 10px;}</style></head><body><div class="header"><h1>${title}</h1><div class="date">${translations[currentLanguage].createdOn}: ${date}</div></div>${calculationPeriodHTML}${staysTableHTML}<div class="results">${resultsHTML}</div><div class="footer"><div class="disclaimer">${disclaimerText}</div><div>${footerText} | ${translations[currentLanguage].pageInfo}</div></div></body></html>`;
         }
 
         function showTextExport() {
             const resultsDiv = document.getElementById('results');
             const resultItems = resultsDiv.querySelectorAll('.result-item');
-
             const enteredStays = collectEnteredStays();
-
             let textContent = currentMode === 'schengen' 
                 ? (currentLanguage === 'de' ? 'SCHENGEN AUFENTHALTSBERECHNUNG (90/180 Tage)' : 'SCHENGEN STAY CALCULATION (90/180 days)')
                 : (currentLanguage === 'de' ? 'VISUM AUFENTHALTSBERECHNUNG' : 'VISA STAY CALCULATION');
-
             textContent += '\n' + '='.repeat(60) + '\n\n';
             textContent += translations[currentLanguage].createdOn + ': ' + getTodayMEZ().toLocaleString(currentLanguage === 'de' ? 'de-DE' : 'en-GB') + '\n\n';
 
             if (calculationPeriodData) {
                 const periodStart = calculationPeriodData.start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
                 const periodEnd = calculationPeriodData.end.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
-
                 let periodTitle, periodNote;
                 if (calculationPeriodData.mode === 'schengen') {
                     periodTitle = currentLanguage === 'de' ? 'BERECHNUNGSZEITRAUM (180 Tage)' : 'CALCULATION PERIOD (180 days)';
@@ -2589,24 +1780,16 @@
                     periodTitle = currentLanguage === 'de' ? 'VISUM-GÜLTIGKEITSZEITRAUM' : 'VISA VALIDITY PERIOD';
                     periodNote = currentLanguage === 'de' ? 'Alle Aufenthalte müssen innerhalb dieses Zeitraums liegen.' : 'All stays must be within this period.';
                 }
-
-                textContent += `${periodTitle}:\n`;
-                textContent += `${periodStart} → ${periodEnd}\n`;
-                textContent += `${periodNote}\n\n`;
+                textContent += `${periodTitle}:\n${periodStart} → ${periodEnd}\n${periodNote}\n\n`;
             }
 
             if (enteredStays.length > 0) {
-                textContent += translations[currentLanguage].stayOverviewTitle + ':\n';
-                textContent += '-'.repeat(40) + '\n';
-                enteredStays.forEach(stay => {
-                    textContent += `${stay.number}. ${stay.startDate} - ${stay.endDate} (${stay.days} ${translations[currentLanguage].daysTextPlural})\n`;
-                });
+                textContent += translations[currentLanguage].stayOverviewTitle + ':\n' + '-'.repeat(40) + '\n';
+                enteredStays.forEach(stay => { textContent += `${stay.number}. ${stay.startDate} - ${stay.endDate} (${stay.days} ${translations[currentLanguage].daysTextPlural})\n`; });
                 textContent += '\n';
             }
 
-            textContent += 'BERECHNUNGSERGEBNIS:\n';
-            textContent += '-'.repeat(40) + '\n';
-
+            textContent += 'BERECHNUNGSERGEBNIS:\n' + '-'.repeat(40) + '\n';
             resultItems.forEach(item => {
                 const label = item.querySelector('.result-label')?.textContent || '';
                 const value = item.querySelector('.result-value')?.textContent || '';
@@ -2614,13 +1797,9 @@
             });
 
             const nextEntry = resultsDiv.querySelector('.next-entry-date');
-            if (nextEntry) {
-                textContent += '\n' + nextEntry.textContent + '\n';
-            }
+            if (nextEntry) textContent += '\n' + nextEntry.textContent + '\n';
 
-            textContent += '\n' + '='.repeat(60) + '\n';
-            textContent += translations[currentLanguage].disclaimer;
-
+            textContent += '\n' + '='.repeat(60) + '\n' + translations[currentLanguage].disclaimer;
             const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -2630,21 +1809,14 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-
-            alert(currentLanguage === 'de' 
-                ? 'Die Berechnung wurde als Textdatei heruntergeladen.' 
-                : 'The calculation has been downloaded as a text file.');
+            alert(currentLanguage === 'de' ? 'Die Berechnung wurde als Textdatei heruntergeladen.' : 'The calculation has been downloaded as a text file.');
         }
 
         document.addEventListener('DOMContentLoaded', function() {
             generateStayEntries();
             updatePeriodDisplay();
-
             const allowedDaysInput = document.getElementById('allowedDays');
-            if (allowedDaysInput) {
-                allowedDaysInput.placeholder = translations[currentLanguage].placeholder90;
-            }
-
+            if (allowedDaysInput) allowedDaysInput.placeholder = translations[currentLanguage].placeholder90;
             const controlDateInput = document.getElementById('controlDateInput');
             if (controlDateInput) {
                 const today = getTodayMEZDateOnly();
@@ -2653,13 +1825,8 @@
                 const dd = String(today.getDate()).padStart(2, '0');
                 controlDateInput.value = `${yyyy}-${mm}-${dd}`;
             }
-
             calculateStayPeriods();
-
-            const mezToday = getTodayMEZ();
-            console.log('🕐 Aktuelles MEZ-Datum:', mezToday.toLocaleDateString('de-DE'), mezToday.toLocaleTimeString('de-DE'));
-            console.log('🌍 Browser-Zeitzone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
-            console.log('📅 Verwendetes Datum für Berechnungen:', getTodayMEZDateOnly().toLocaleDateString('de-DE'));
+            console.log('✅ App initialisiert');
         });
     </script>
 </body>
