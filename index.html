@@ -1215,47 +1215,62 @@
         // 2. HELPER FUNCTIONS (Time & Calculation)
         // ==========================================
 
+        // Setzt Datum immer auf 12:00:00 Uhr Mittag, um DST/Zeitzonen-Grenzen zu vermeiden
+        function getNormalizedDate(dateInput) {
+            if (!dateInput) return null;
+            const d = new Date(dateInput);
+            // Wir setzen explizit auf 12:00 Uhr Mittags
+            d.setHours(12, 0, 0, 0);
+            return d;
+        }
+
         function getTodayMEZ() {
             const now = new Date();
+            // Basis-Offset für UTC+1 (MEZ)
             const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
             const mezTime = new Date(utcTime + (1 * 3600000));
+            
+            // Einfache Sommerzeit-Prüfung (März bis Oktober)
             const year = mezTime.getFullYear();
             const marchLastSunday = new Date(year, 2, 31 - ((new Date(year, 2, 31).getDay() + 6) % 7));
             const octoberLastSunday = new Date(year, 9, 31 - ((new Date(year, 9, 31).getDay() + 6) % 7));
+            
+            // Wenn Sommerzeit, +1 Stunde addieren
             if (now >= marchLastSunday && now < octoberLastSunday) {
                 return new Date(utcTime + (2 * 3600000));
-            } else {
-                return mezTime;
             }
+            return mezTime;
         }
 
         function getTodayMEZDateOnly() {
             const mezToday = getTodayMEZ();
-            return new Date(mezToday.getFullYear(), mezToday.getMonth(), mezToday.getDate());
+            return getNormalizedDate(mezToday);
         }
 
         function getControlDate() {
             const input = document.getElementById('controlDateInput');
             if (input && input.value) {
-                const d = new Date(input.value);
-                return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                return getNormalizedDate(input.value);
             }
             return getTodayMEZDateOnly();
         }
 
         // --- HILFSFUNKTION: Verhindert Doppelzählung von Tagen ---
+        // Arbeitet jetzt strikt mit YYYY-MM-DD Strings basierend auf 12:00 Uhr Objekten
         function countUniqueDays(stays, periodStart, periodEnd) {
             const uniqueDays = new Set();
-            const startLimit = periodStart ? periodStart.getTime() : -Infinity;
-            const endLimit = periodEnd ? periodEnd.getTime() : Infinity;
+            // Grenzen auf 12:00 normalisieren für fairen Vergleich
+            const startLimit = getNormalizedDate(periodStart).getTime();
+            const endLimit = getNormalizedDate(periodEnd).getTime();
 
             stays.forEach(stay => {
-                let current = new Date(stay.start);
-                const end = new Date(stay.end);
+                let current = getNormalizedDate(stay.start);
+                const end = getNormalizedDate(stay.end);
 
                 while (current <= end) {
                     const currentTs = current.getTime();
                     if (currentTs >= startLimit && currentTs <= endLimit) {
+                        // Speichert Datum als String (automatisches Deduplizieren durch Set)
                         uniqueDays.add(current.toISOString().split('T')[0]);
                     }
                     current.setDate(current.getDate() + 1);
@@ -1263,6 +1278,7 @@
             });
             return uniqueDays.size;
         }
+
 
         // ==========================================
         // 3. UI FUNCTIONS (Language, Inputs, Generation)
@@ -1480,17 +1496,18 @@
         function calculateStayPeriods() {
             const stayPeriods = [];
             let hasIncomplete = false;
-            const controlDate = getControlDate();
+            const controlDate = getControlDate(); // Ist jetzt 12:00 Uhr
 
             let rawRows = [];
             for (let i = 1; i <= 10; i++) {
                 const entryInput = document.getElementById(`${currentMode}Entry${i}`);
                 const exitInput = document.getElementById(`${currentMode}Exit${i}`);
                 if ((entryInput && entryInput.value) || (exitInput && exitInput.value)) {
+                    // WICHTIG: Inputs direkt normalisieren auf 12:00
                     rawRows.push({
                         index: i,
-                        entryDate: entryInput.value ? new Date(entryInput.value) : null,
-                        exitDate: exitInput.value ? new Date(exitInput.value) : null
+                        entryDate: entryInput.value ? getNormalizedDate(entryInput.value) : null,
+                        exitDate: exitInput.value ? getNormalizedDate(exitInput.value) : null
                     });
                 }
             }
@@ -1509,7 +1526,7 @@
                 // Logik für fehlende Einreise
                 if (!entryDate && exitDate) {
                     if (i > 0 && stayPeriods[i-1].exitDate) {
-                        entryDate = new Date(stayPeriods[i-1].exitDate);
+                        entryDate = new Date(stayPeriods[i-1].exitDate); // Übernimmt 12:00 vom Vorgänger
                         isEstimated = true;
                     } else {
                         entryDate = new Date(exitDate);
@@ -1523,6 +1540,7 @@
                     if (i + 1 < rawRows.length && rawRows[i+1].entryDate) {
                         exitDate = new Date(rawRows[i+1].entryDate);
                     } else {
+                        // Bis zum Kontrolldatum (das ist bereits 12:00 Uhr)
                         exitDate = new Date(controlDate);
                     }
                 }
@@ -1543,32 +1561,30 @@
                     if (isEstimated) hasIncomplete = true;
                 }
             }
-
-            displayCalculatedStays(stayPeriods);
+            
             return { stayPeriods, hasIncomplete };
         }
 
-        // ==========================================
-        // NEUE SCHENGEN BERECHNUNG (Detail-Check)
-        // ==========================================
         function calculateSchengen() {
             const { stayPeriods, hasIncomplete } = calculateStayPeriods();
             
-            const referenceDate = getControlDate();
+            // Referenzdatum (Kontrolldatum) ist 12:00 Uhr
+            const referenceDate = getControlDate(); 
             const period180Start = new Date(referenceDate);
-            period180Start.setDate(period180Start.getDate() - 180);
+            
+            // 180 Tage Fenster INKLUSIVE heute. 
+            // Also: Heute minus 179 Tage. (Tag 1 bis Tag 180 = 180 Tage)
+            period180Start.setDate(period180Start.getDate() - 179);
 
-            // Set für global eindeutige Tage (verhindert Doppelzählung über Aufenthalte hinweg)
             const globalConsumedDays = new Set();
             let totalCountedDays = 0;
 
-            // Grenzen als Timestamps
             const winStart = period180Start.getTime();
             const winEnd = referenceDate.getTime();
 
-            // Jeden Aufenthalt im Detail prüfen
             stayPeriods.forEach(stay => {
-                let current = new Date(stay.entryDate);
+                // Iteration beginnt bei 12:00 Uhr
+                let current = new Date(stay.entryDate); 
                 const end = new Date(stay.exitDate);
                 let stayCount = 0;
 
@@ -1576,18 +1592,16 @@
                     const ts = current.getTime();
                     const dayStr = current.toISOString().split('T')[0];
 
-                    // 1. Liegt der Tag im 180-Tage-Fenster?
-                    // 2. Wurde der Tag noch NICHT gezählt (Doppelbuchung)?
+                    // Check: Im Fenster? & Noch nicht gezählt?
                     if (ts >= winStart && ts <= winEnd) {
                         if (!globalConsumedDays.has(dayStr)) {
                             globalConsumedDays.add(dayStr);
                             stayCount++;
                         }
                     }
+                    // +1 Tag (bleibt 12:00 Uhr)
                     current.setDate(current.getDate() + 1);
                 }
-                
-                // Speichern für die Anzeige
                 stay.countedDays = stayCount;
                 totalCountedDays += stayCount;
             });
@@ -1595,57 +1609,52 @@
             const remainingDays = 90 - totalCountedDays;
             const isLegal = totalCountedDays <= 90;
 
-            const calculationPeriod = {
-                start: period180Start,
-                end: referenceDate,
-                mode: 'schengen'
+            const calculationPeriod = { 
+                start: period180Start, 
+                end: referenceDate, 
+                mode: 'schengen' 
             };
 
             let allowedUntil = null;
             if (remainingDays > 0 && isLegal) {
                 allowedUntil = new Date(referenceDate);
-                allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1);
+                allowedUntil.setDate(allowedUntil.getDate() + remainingDays); // Ab morgen zählen
             }
 
             let nextEntryDate = null;
             if (!isLegal || remainingDays <= 0) {
-                // Heuristik: Wir suchen den ältesten Tag im Fenster, der verfällt
-                // Da wir jetzt "countedDays" haben, schauen wir auf die Aufenthalte, die > 0 Tage beitragen
+                // Suche den ältesten gewerteten Tag
                 const contributingStays = stayPeriods.filter(s => s.countedDays > 0);
-                
                 if (contributingStays.length > 0) {
-                    // Der Start des ersten Aufenthalts, der zur Summe beiträgt
-                    // (Achtung: Das ist vereinfacht. Exakt wäre: Der erste Tag in globalConsumedDays + 180)
-                    // Wir nehmen hier den Start des Fensters oder Start des ersten Aufenthalts
+                    // Wir nehmen den Start des relevantesten Aufenthalts
+                    // (vereinfacht, exakt wäre komplexer gleitender Durchschnitt)
                     let firstRelevantDay = contributingStays[0].entryDate;
                     if (firstRelevantDay < period180Start) firstRelevantDay = period180Start;
                     
                     nextEntryDate = new Date(firstRelevantDay);
+                    // Wann ist dieser Tag 180 Tage her? Tag X + 180
                     nextEntryDate.setDate(nextEntryDate.getDate() + 180);
                 }
             }
-
+            
             displaySchengenResults(totalCountedDays, remainingDays, isLegal, allowedUntil, nextEntryDate, referenceDate, calculationPeriod, hasIncomplete);
-            // Update List UI mit neuen Details
             displayCalculatedStays(stayPeriods);
         }
 
-        // ==========================================
-        // NEUE VISUM BERECHNUNG (Detail-Check)
-        // ==========================================
         function calculateVisa() {
-            const visaStart = document.getElementById('visaStart').value;
-            const visaEnd = document.getElementById('visaEnd').value;
+            const visaStartInput = document.getElementById('visaStart').value;
+            const visaEndInput = document.getElementById('visaEnd').value;
             const allowedDays = parseInt(document.getElementById('allowedDays').value);
             const allowedEntries = document.getElementById('allowedEntries').value;
 
-            if (!visaStart || !visaEnd || !allowedDays) {
+            if (!visaStartInput || !visaEndInput || !allowedDays) {
                 alert(translations[currentLanguage].errorVisaConfig);
                 return;
             }
 
-            const visaStartDate = new Date(visaStart);
-            const visaEndDate = new Date(visaEnd);
+            // Auch Visumdaten auf 12:00 normalisieren
+            const visaStartDate = getNormalizedDate(visaStartInput);
+            const visaEndDate = getNormalizedDate(visaEndInput);
 
             if (visaEndDate <= visaStartDate) {
                 alert(translations[currentLanguage].errorVisaDates);
@@ -1662,15 +1671,11 @@
             const winStart = visaStartDate.getTime();
             const winEnd = visaEndDate.getTime();
 
-            // Aufenthalte prüfen
             stayPeriods.forEach((stay, index) => {
-                // Genereller Check: Liegt der Zeitraum komplett außerhalb?
                 if (stay.entryDate > visaEndDate || stay.exitDate < visaStartDate) {
-                    // Komplett außerhalb -> 0 Tage
                     stay.countedDays = 0;
                     violations.push(`${translations[currentLanguage].stayLabel} ${index + 1}: ${translations[currentLanguage].errorStayOutsideVisa}`);
                 } else {
-                    // Tage einzeln zählen
                     let current = new Date(stay.entryDate);
                     const end = new Date(stay.exitDate);
                     let stayCount = 0;
@@ -1700,20 +1705,15 @@
             });
 
             let isCompliant = true;
-
             if (allowedEntries !== 'multi' && entriesUsed > parseInt(allowedEntries)) {
                 violations.push(`${translations[currentLanguage].tooManyEntries}: ${entriesUsed}/${allowedEntries}`);
                 isCompliant = false;
             }
-
             if (totalCountedDays > allowedDays) {
                 violations.push(`${translations[currentLanguage].daysOverLimit}: ${totalCountedDays}/${allowedDays}`);
                 isCompliant = false;
             }
-            
-            if (violations.length > 0) {
-                isCompliant = false;
-            }
+            if (violations.length > 0) isCompliant = false;
 
             const remainingDays = Math.max(0, allowedDays - totalCountedDays);
             const controlDate = getControlDate();
@@ -1722,30 +1722,19 @@
             if (remainingDays > 0) {
                 let effectiveStart = controlDate < visaStartDate ? visaStartDate : controlDate;
                 allowedUntil = new Date(effectiveStart);
-                allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1);
-                if (allowedUntil > visaEndDate) {
-                    allowedUntil = visaEndDate;
-                }
+                allowedUntil.setDate(allowedUntil.getDate() + remainingDays);
+                if (allowedUntil > visaEndDate) allowedUntil = visaEndDate;
             }
 
-            calculationPeriodData = {
-                start: visaStartDate,
-                end: visaEndDate,
-                mode: 'visa'
-            };
-
+            calculationPeriodData = { start: visaStartDate, end: visaEndDate, mode: 'visa' };
             displayVisaResults(totalCountedDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStartDate, visaEndDate, allowedUntil, controlDate, hasIncomplete);
-            // Update List UI mit neuen Details
             displayCalculatedStays(stayPeriods);
-        }
+        }    
             
         // ==========================================
         // 5. DISPLAY & EXPORT FUNCTIONS
         // ==========================================
 
-        // ==========================================
-        // NEUE DISPLAY FUNKTION (Zeigt gewertete Tage an)
-        // ==========================================
         function displayCalculatedStays(stayPeriods) {
             const containerId = currentMode === 'schengen' ? 'schengenCalculatedStays' : 'visaCalculatedStays';
             const container = document.getElementById(containerId);
@@ -1987,21 +1976,28 @@
             alert(currentLanguage === 'de' ? 'Die Berechnung wurde als Textdatei heruntergeladen.' : 'The calculation has been downloaded as a text file.');
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('DOMContentLoaded', function() {
             generateStayEntries();
-            updatePeriodDisplay();
+            
+            // Initiale Platzhalter setzen
             const allowedDaysInput = document.getElementById('allowedDays');
             if (allowedDaysInput) allowedDaysInput.placeholder = translations[currentLanguage].placeholder90;
+            
+            // Kontrolldatum vorausfüllen (lokale Zeit berücksichtigen)
             const controlDateInput = document.getElementById('controlDateInput');
             if (controlDateInput) {
-                const today = getTodayMEZDateOnly();
-                const yyyy = today.getFullYear();
-                const mm = String(today.getMonth() + 1).padStart(2, '0');
-                const dd = String(today.getDate()).padStart(2, '0');
-                controlDateInput.value = `${yyyy}-${mm}-${dd}`;
+                const now = new Date();
+                // Korrektur: Wir nutzen hier direkt das lokale Datum des Browsers für das Input-Feld
+                // um "Gestern"-Effekte durch UTC-Konvertierung zu vermeiden.
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                controlDateInput.value = `${year}-${month}-${day}`;
             }
-            calculateStayPeriods();
-            console.log('✅ App initialisiert');
+            
+            updatePeriodDisplay();
+            calculateStayPeriods(); // Initiale "leere" Berechnung
+            console.log('✅ App initialisiert (Alle Zeiten auf 12:00 Uhr normalisiert)');
         });
     </script>
 </body>
