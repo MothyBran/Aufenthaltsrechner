@@ -1502,57 +1502,79 @@
         function calculateStayPeriods() {
             const stayPeriods = [];
             let hasIncomplete = false;
-            const controlDate = getControlDate(); // Ist jetzt 12:00 Uhr
+            const controlDate = getControlDate(); // Ist auf 12:00 Uhr normalisiert
 
+            // 1. Alle ausgefüllten Zeilen sammeln
             let rawRows = [];
             for (let i = 1; i <= 10; i++) {
                 const entryInput = document.getElementById(`${currentMode}Entry${i}`);
                 const exitInput = document.getElementById(`${currentMode}Exit${i}`);
+                
+                // Zeile nur aufnehmen, wenn mindestens ein Datum existiert
                 if ((entryInput && entryInput.value) || (exitInput && exitInput.value)) {
-                    // WICHTIG: Inputs direkt normalisieren auf 12:00
                     rawRows.push({
-                        index: i,
+                        index: i, 
                         entryDate: entryInput.value ? getNormalizedDate(entryInput.value) : null,
                         exitDate: exitInput.value ? getNormalizedDate(exitInput.value) : null
                     });
                 }
             }
 
+            // 2. ROBUSTE SORTIERUNG: 
+            // Sortiert nach Einreise. Falls Einreise fehlt, wird die Ausreise als Sortierhilfe genommen.
+            // Damit landen auch durcheinander eingegebene Daten in der richtigen zeitlichen Reihenfolge.
             rawRows.sort((a, b) => {
-                if(a.entryDate && b.entryDate) return a.entryDate - b.entryDate;
-                return a.index - b.index;
+                const dateA = a.entryDate || a.exitDate || new Date(8640000000000000); 
+                const dateB = b.entryDate || b.exitDate || new Date(8640000000000000);
+                return dateA - dateB;
             });
 
+            // 3. Berechnung und Lückenfüllung
             for (let i = 0; i < rawRows.length; i++) {
                 let row = rawRows[i];
                 let entryDate = row.entryDate;
                 let exitDate = row.exitDate;
                 let isEstimated = false;
 
-                // Logik für fehlende Einreise
+                // FALL A: FEHLENDE EINREISE
                 if (!entryDate && exitDate) {
-                    if (i > 0 && stayPeriods[i-1].exitDate) {
-                        entryDate = new Date(stayPeriods[i-1].exitDate); // Übernimmt 12:00 vom Vorgänger
+                    // WICHTIG: Wir schauen auf den zuletzt BERECHNETEN Aufenthalt (stayPeriods.length - 1),
+                    // nicht auf den Index der Schleife 'i', da dieser abweichen kann.
+                    const lastStay = stayPeriods.length > 0 ? stayPeriods[stayPeriods.length - 1] : null;
+
+                    if (lastStay && lastStay.exitDate) {
+                        // Lücke schließen: Startet am Tag der vorherigen Ausreise
+                        entryDate = new Date(lastStay.exitDate); 
                         isEstimated = true;
                     } else {
+                        // Kein Vorgänger vorhanden? Dann setzen wir Einreise = Ausreise (1 Tag)
+                        // und markieren es als unvollständig/geschätzt.
                         entryDate = new Date(exitDate);
                         isEstimated = true;
                     }
                 }
 
-                // Logik für fehlende Ausreise
+                // FALL B: FEHLENDE AUSREISE
                 if (entryDate && !exitDate) {
                     isEstimated = true;
+                    // Gibt es eine nächste Zeile? (Da wir sortiert haben, ist rawRows[i+1] chronologisch später)
                     if (i + 1 < rawRows.length && rawRows[i+1].entryDate) {
+                        // Bis zur nächsten Einreise
                         exitDate = new Date(rawRows[i+1].entryDate);
                     } else {
-                        // Bis zum Kontrolldatum (das ist bereits 12:00 Uhr)
+                        // Kein Nachfolger -> Bis zum Kontrolldatum rechnen
                         exitDate = new Date(controlDate);
                     }
                 }
 
+                // Wenn wir jetzt Start- und Enddatum haben (oder geschätzt haben)
                 if (entryDate && exitDate) {
-                    if (exitDate < entryDate) exitDate = new Date(entryDate);
+                    // Validierung: Falls Ausreise VOR Einreise liegt (Tippfehler User), korrigieren
+                    if (exitDate < entryDate) {
+                        exitDate = new Date(entryDate);
+                    }
+
+                    // Dauer berechnen (inklusive Starttag)
                     const timeDiff = exitDate.getTime() - entryDate.getTime();
                     const days = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
 
@@ -1564,9 +1586,13 @@
                         estimated: isEstimated,
                         originalIndex: row.index
                     });
+
                     if (isEstimated) hasIncomplete = true;
                 }
             }
+
+            // Wichtig: Anzeige aktualisieren, damit der User das Ergebnis sieht
+            displayCalculatedStays(stayPeriods);
             
             return { stayPeriods, hasIncomplete };
         }
