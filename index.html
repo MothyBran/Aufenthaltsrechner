@@ -2029,11 +2029,13 @@
 
         function collectEnteredStays() {
             const { stayPeriods } = calculateStayPeriods();
+
             return stayPeriods.map(stay => ({
                 number: stay.number,
                 startDate: stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
                 endDate: stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB'),
-                days: stay.days
+                days: stay.days,
+                estimated: stay.estimated // NEU: Wir geben den Status an den Druck weiter
             }));
         }
 
@@ -2069,15 +2071,22 @@
         function createPrintHTML(title, date, resultsHTML, enteredStays, calculationPeriod) {
             const disclaimerText = translations[currentLanguage].disclaimer;
             const footerText = translations[currentLanguage].createdWith;
+
             const staysOverviewTitle = translations[currentLanguage].stayOverviewTitle;
             const arrivalLabel = translations[currentLanguage].arrivalLabel;
             const departureLabel = translations[currentLanguage].departureLabel;
             const daysTextPlural = translations[currentLanguage].daysTextPlural;
+            
+            // Text für die Legende im Druck
+            const incompleteLegend = currentLanguage === 'de' 
+                ? '⚠️ Zeitraum automatisch ergänzt (Ein- oder Ausreise fehlte)' 
+                : '⚠️ Period automatically filled (Entry or exit was missing)';
 
             let calculationPeriodHTML = '';
             if (calculationPeriod) {
                 const periodStart = calculationPeriod.start.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
                 const periodEnd = calculationPeriod.end.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB');
+
                 let periodTitle, periodNote;
                 if (calculationPeriod.mode === 'schengen') {
                     periodTitle = currentLanguage === 'de' ? 'Berechnungszeitraum (180 Tage)' : 'Calculation Period (180 days)';
@@ -2086,65 +2095,241 @@
                     periodTitle = currentLanguage === 'de' ? 'Visum-Gültigkeitszeitraum' : 'Visa Validity Period';
                     periodNote = currentLanguage === 'de' ? 'Alle Aufenthalte müssen innerhalb dieses Zeitraums liegen.' : 'All stays must be within this period.';
                 }
-                calculationPeriodHTML = `<div class="calculation-period"><h2>${periodTitle}</h2><div class="period-info"><strong>${periodStart} → ${periodEnd}</strong><p>${periodNote}</p></div></div>`;
+
+                calculationPeriodHTML = `
+                    <div class="calculation-period">
+                        <h2>${periodTitle}</h2>
+                        <div class="period-info">
+                            <strong>${periodStart} → ${periodEnd}</strong>
+                            <p>${periodNote}</p>
+                        </div>
+                    </div>
+                `;
             }
 
             let staysTableHTML = '';
             if (enteredStays.length > 0) {
-                staysTableHTML = `<div class="stays-overview"><h2>${staysOverviewTitle}</h2><table class="stays-table"><thead><tr><th>#</th><th>${arrivalLabel}</th><th>${departureLabel}</th><th>${daysTextPlural}</th></tr></thead><tbody>`;
-                enteredStays.forEach(stay => { staysTableHTML += `<tr><td>${stay.number}</td><td>${stay.startDate}</td><td>${stay.endDate}</td><td>${stay.days}</td></tr>`; });
-                staysTableHTML += `</tbody></table></div>`;
+                // Prüfen, ob wir überhaupt unvollständige Daten haben (für die Legende)
+                const hasIncomplete = enteredStays.some(s => s.estimated);
+                const legendHTML = hasIncomplete ? `<div class="table-legend">${incompleteLegend}</div>` : '';
+
+                staysTableHTML = `
+                    <div class="stays-overview">
+                        <h2>${staysOverviewTitle}</h2>
+                        <table class="stays-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>${arrivalLabel}</th>
+                                    <th>${departureLabel}</th>
+                                    <th>${daysTextPlural}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                enteredStays.forEach(stay => {
+                    // NEU: Wenn estimated == true, dann Klasse hinzufügen und Icon anzeigen
+                    const rowClass = stay.estimated ? 'class="incomplete-row"' : '';
+                    const icon = stay.estimated ? ' ⚠️' : '';
+                    
+                    staysTableHTML += `
+                        <tr ${rowClass}>
+                            <td>${stay.number}</td>
+                            <td>${stay.startDate}</td>
+                            <td>${stay.endDate}</td>
+                            <td>${stay.days}${icon}</td>
+                        </tr>
+                    `;
+                });
+
+                staysTableHTML += `
+                            </tbody>
+                        </table>
+                        ${legendHTML}
+                    </div>
+                `;
             }
 
-            return `<!DOCTYPE html><html lang="${currentLanguage}"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title>
+            return `
+        <!DOCTYPE html>
+        <html lang="${currentLanguage}">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${title}</title>
             <style>
-                body {font-family: Arial, sans-serif;font-size: 12pt;line-height: 1.4;color: black;margin: 0;padding: 20px;background: white;}
-                .header {text-align: center;border-bottom: 3px solid black;padding-bottom: 15px;margin-bottom: 30px;}
-                .header h1 {font-size: 18pt;font-weight: bold;margin: 0 0 10px 0;}
-                .header .date {font-size: 11pt;color: #666;}
-                .calculation-period {background: #f0f8ff;border: 2px solid #4169e1;border-radius: 8px;padding: 15px;margin-bottom: 25px;}
-                .calculation-period h2 {font-size: 14pt;font-weight: bold;margin: 0 0 10px 0;color: #1e3a8a;}
-                .period-info {text-align: center;}
-                .period-info strong {font-size: 13pt;color: #1e40af;display: block;margin-bottom: 5px;}
-                .period-info p {font-size: 10pt;color: #666;margin: 0;font-style: italic;}
-                .stays-overview {margin-bottom: 30px;}
-                .stays-overview h2 {font-size: 14pt;font-weight: bold;margin-bottom: 15px;color: #333;border-bottom: 2px solid #ccc;padding-bottom: 8px;}
-                .stays-table {width: 100%;border-collapse: collapse;margin-bottom: 20px;}
-                .stays-table th, .stays-table td {border: 1px solid #999;padding: 8px 12px;text-align: left;}
-                .stays-table th {background: #f5f5f5;font-weight: bold;color: #333;}
-                .stays-table td:first-child {text-align: center;font-weight: bold;}
-                .stays-table td:last-child {text-align: center;}
-                .result-item {display: flex;justify-content: space-between;padding: 10px 0;border-bottom: 1px solid #ccc;}
-                .result-label {font-weight: 600;color: #333;flex: 1;}
-                .result-value {font-weight: bold;text-align: right;flex: 1;}
-                .status-legal { color: #2d5a2d; }.status-illegal { color: #8b0000; }.status-warning { color: #8b6914; }
-                .next-entry-date {background: #f5f5f5;border: 1px solid #999;padding: 15px;margin: 20px 0;text-align: center;border-radius: 5px;}
-                .footer {margin-top: 40px;padding-top: 20px;border-top: 1px solid #ccc;font-size: 9pt;color: #666;text-align: center;}
-                
-                /* NEU: Style für das Druck-Logo */
-                .print-logo {
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 12pt;
+                    line-height: 1.4;
+                    color: black;
+                    margin: 0;
+                    padding: 20px;
+                    background: white;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 3px solid black;
+                    padding-bottom: 15px;
+                    margin-bottom: 30px;
+                }
+                .header h1 {
+                    font-size: 18pt;
+                    font-weight: bold;
+                    margin: 0 0 10px 0;
+                }
+                .header .date {
+                    font-size: 11pt;
+                    color: #666;
+                }
+                .calculation-period {
+                    background: #f0f8ff;
+                    border: 2px solid #4169e1;
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-bottom: 25px;
+                }
+                .calculation-period h2 {
+                    font-size: 14pt;
+                    font-weight: bold;
+                    margin: 0 0 10px 0;
+                    color: #1e3a8a;
+                }
+                .period-info {
+                    text-align: center;
+                }
+                .period-info strong {
+                    font-size: 13pt;
+                    color: #1e40af;
                     display: block;
-                    margin: 0 auto 15px auto; /* Zentriert + Abstand nach unten */
-                    width: 60px; /* Kleinere Größe für Footer */
-                    height: auto;
+                    margin-bottom: 5px;
+                }
+                .period-info p {
+                    font-size: 10pt;
+                    color: #666;
+                    margin: 0;
+                    font-style: italic;
+                }
+                .stays-overview {
+                    margin-bottom: 30px;
+                }
+                .stays-overview h2 {
+                    font-size: 14pt;
+                    font-weight: bold;
+                    margin-bottom: 15px;
+                    color: #333;
+                    border-bottom: 2px solid #ccc;
+                    padding-bottom: 8px;
+                }
+                .stays-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 5px; /* Weniger Abstand, damit Legende nah dran ist */
+                }
+                .stays-table th, .stays-table td {
+                    border: 1px solid #999;
+                    padding: 8px 12px;
+                    text-align: left;
+                }
+                .stays-table th {
+                    background: #f5f5f5;
+                    font-weight: bold;
+                    color: #333;
+                }
+                .stays-table td:first-child {
+                    text-align: center;
+                    font-weight: bold;
+                }
+                .stays-table td:last-child {
+                    text-align: center;
                 }
                 
-                .disclaimer {font-style: italic;margin-bottom: 10px;}
+                /* NEU: Styles für unvollständige Daten im Druck */
+                .incomplete-row {
+                    background-color: #fff0f0 !important; /* Helles Rot */
+                    color: #d32f2f;
+                }
+                .incomplete-row td {
+                    border-color: #ffcdd2;
+                }
+                .table-legend {
+                    font-size: 9pt;
+                    color: #d32f2f;
+                    font-style: italic;
+                    text-align: right;
+                }
+        
+                .result-item {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 10px 0;
+                    border-bottom: 1px solid #ccc;
+                }
+                .result-label {
+                    font-weight: 600;
+                    color: #333;
+                    flex: 1;
+                }
+                .result-value {
+                    font-weight: bold;
+                    text-align: right;
+                    flex: 1;
+                }
+                .status-legal { color: #2d5a2d; }
+                .status-illegal { color: #8b0000; }
+                .status-warning { color: #8b6914; }
+                .next-entry-date {
+                    background: #f5f5f5;
+                    border: 1px solid #999;
+                    padding: 15px;
+                    margin: 20px 0;
+                    text-align: center;
+                    border-radius: 5px;
+                }
+                .footer {
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 1px solid #ccc;
+                    font-size: 9pt;
+                    color: #666;
+                    text-align: center;
+                }
+                /* Style für das Logo im Footer */
+                .print-logo {
+                    display: block;
+                    margin: 0 auto 15px auto;
+                    width: 60px;
+                    height: auto;
+                }
+                .disclaimer {
+                    font-style: italic;
+                    margin-bottom: 10px;
+                }
             </style>
-            </head><body>
-            <div class="header"><h1>${title}</h1><div class="date">${translations[currentLanguage].createdOn}: ${date}</div></div>
+        </head>
+        <body>
+            <div class="header">
+                <h1>${title}</h1>
+                <div class="date">${translations[currentLanguage].createdOn}: ${date}</div>
+            </div>
+        
             ${calculationPeriodHTML}
+        
             ${staysTableHTML}
-            <div class="results">${resultsHTML}</div>
-            
+        
+            <div class="results">
+                ${resultsHTML}
+            </div>
+        
             <div class="footer">
                 <img src="android-chrome-512x512.png" class="print-logo">
-                
                 <div class="disclaimer">${disclaimerText}</div>
                 <div>${footerText} | ${translations[currentLanguage].pageInfo}</div>
             </div>
-            </body></html>`;
-        }
+        </body>
+        </html>`;
+                }
 
         function showTextExport() {
             const resultsDiv = document.getElementById('results');
