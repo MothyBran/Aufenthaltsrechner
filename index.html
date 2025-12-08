@@ -1507,7 +1507,7 @@
         }
 
         // ==========================================
-        // 4. LOGIC FUNCTIONS (Mit automatischer Sortierung)
+        // 4. LOGIC FUNCTIONS (Event-Stream Prinzip)
         // ==========================================
 
         function calculateStayPeriods() {
@@ -1515,121 +1515,153 @@
             let hasIncomplete = false;
             const controlDate = getControlDate(); 
 
-            // 1. Eingaben lesen
-            let rawRows = [];
+            // 1. SCHRITT: Alle Ereignisse einsammeln (Egal wo sie stehen)
+            // Wir erstellen eine Liste von Events: { date: Date, type: 'ENTRY' oder 'EXIT' }
+            let allEvents = [];
+
             for (let i = 1; i <= 10; i++) {
                 const entryInput = document.getElementById(`${currentMode}Entry${i}`);
                 const exitInput = document.getElementById(`${currentMode}Exit${i}`);
                 
-                if ((entryInput && entryInput.value) || (exitInput && exitInput.value)) {
-                    // Datum parsen
-                    let eDate = entryInput.value ? (typeof getNormalizedDate === 'function' ? getNormalizedDate(entryInput.value) : new Date(entryInput.value)) : null;
-                    let xDate = exitInput.value ? (typeof getNormalizedDate === 'function' ? getNormalizedDate(exitInput.value) : new Date(exitInput.value)) : null;
-
-                    rawRows.push({
-                        index: i, // Wir merken uns die Original-Zeile für Fehlermeldungen
-                        entryDate: eDate,
-                        exitDate: xDate
-                    });
+                if (entryInput && entryInput.value) {
+                    const d = typeof getNormalizedDate === 'function' ? getNormalizedDate(entryInput.value) : new Date(entryInput.value);
+                    allEvents.push({ date: d, type: 'ENTRY', sourceIndex: i });
+                }
+                
+                if (exitInput && exitInput.value) {
+                    const d = typeof getNormalizedDate === 'function' ? getNormalizedDate(exitInput.value) : new Date(exitInput.value);
+                    allEvents.push({ date: d, type: 'EXIT', sourceIndex: i });
                 }
             }
 
-            // 2. JETZT SORTIEREN: Wir sortieren die Eingaben chronologisch.
-            // Sortierkriterium: Wenn Einreise da, nimm Einreise. Wenn nicht, nimm Ausreise.
-            rawRows.sort((a, b) => {
-                const dateA = a.entryDate || a.exitDate;
-                const dateB = b.entryDate || b.exitDate;
-                // Falls beide null (sollte nicht passieren), bleib stabil
-                if (!dateA) return 1;
-                if (!dateB) return -1;
-                return dateA - dateB;
+            // 2. SCHRITT: Chronologisch sortieren
+            // Wenn Datum gleich ist: ENTRY kommt vor EXIT (für 1-Tages-Trips)
+            allEvents.sort((a, b) => {
+                if (a.date.getTime() === b.date.getTime()) {
+                    return a.type === 'ENTRY' ? -1 : 1; 
+                }
+                return a.date - b.date;
             });
 
-            // 3. Verarbeiten der sortierten Liste
-            for (let i = 0; i < rawRows.length; i++) {
-                let row = rawRows[i];
-                let entryDate = row.entryDate;
-                let exitDate = row.exitDate;
-                let isEstimated = false;
-                let errorInRow = false;
-                
-                // --- MERGE LOGIK (Zusammenfügen) ---
-                // Wenn ich eine Einreise habe, aber keine Ausreise...
-                if (entryDate && !exitDate) {
-                    // ...schaue ich auf das NÄCHSTE chronologische Element (i+1)
-                    if (i + 1 < rawRows.length) {
-                        const nextRow = rawRows[i+1];
+            // 3. SCHRITT: Die Zeitlinie ablaufen (State Machine)
+            let currentEntry = null; // Speichert den Start einer offenen Reise
+
+            for (let i = 0; i < allEvents.length; i++) {
+                const event = allEvents[i];
+
+                if (event.type === 'ENTRY') {
+                    // --- Wir haben eine Einreise gefunden ---
+                    
+                    if (currentEntry !== null) {
+                        // OHA! Es war schon eine Reise offen (Einreise ohne Ausreise).
+                        // Die müssen wir jetzt zwangsweise schließen, bevor wir die neue beginnen.
+                        // Wir schließen sie bis zum Tag VOR der neuen Einreise (oder Fehleranzeige).
+                        // Hier: Wir markieren sie als unvollständig und schließen sie künstlich ab.
                         
-                        // Hat der nächste Eintrag NUR eine Ausreise (keine Einreise)?
-                        // Und ist diese Ausreise logischerweise NACH meiner Einreise?
-                        if (!nextRow.entryDate && nextRow.exitDate && nextRow.exitDate > entryDate) {
-                            // TREFFER: Wir verschmelzen die beiden Einträge!
-                            exitDate = nextRow.exitDate;
-                            
-                            // Die nächste Zeile haben wir jetzt "verbraucht", also überspringen wir sie im nächsten Schleifendurchlauf
-                            i++; 
+                        // Strategie: Wir schließen die alte Reise ab (bis zur neuen Einreise)
+                        // Das ist oft logisch: Einreise A -> (vergessene Ausreise) -> Einreise B
+                        let forcedExit = new Date(event.date); // Ende ist Start der neuen
+                        
+                        stayPeriods.push({
+                            number: stayPeriods.length + 1,
+                            entryDate: currentEntry.date,
+                            exitDate: forcedExit,
+                            days: Math.floor((forcedExit - currentEntry.date) / (1000 * 3600 * 24)) + 1,
+                            estimated: true, // Rot markieren
+                            error: true // Zeigt an, dass hier was faul war
+                        });
+                        hasIncomplete = true;
+                    }
+                    
+                    // Neue Reise beginnt hier
+                    currentEntry = event;
+
+                } else if (event.type === 'EXIT') {
+                    // --- Wir haben eine Ausreise gefunden ---
+
+                    if (currentEntry !== null) {
+                        // PERFEKT! Wir haben eine offene Einreise, die hier endet.
+                        // Das ist ein sauberer Zeitraum.
+                        
+                        // Sicherheitscheck: Ausreise vor Einreise? (Sollte durch Sortierung nicht passieren, aber bei gleichen Tagen möglich)
+                        let startDate = currentEntry.date;
+                        let endDate = event.date;
+                        
+                        const timeDiff = endDate.getTime() - startDate.getTime();
+                        const days = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
+
+                        stayPeriods.push({
+                            number: stayPeriods.length + 1,
+                            entryDate: startDate,
+                            exitDate: endDate,
+                            days: days,
+                            estimated: false, // Alles gut
+                            error: false
+                        });
+
+                        // Reise ist abgeschlossen, Reset
+                        currentEntry = null;
+
+                    } else {
+                        // PROBLEM: Eine Ausreise ohne vorherige Einreise (Verwaiste Ausreise).
+                        // Wir müssen raten.
+                        // Option A: Startdatum = Ausreisedatum (1 Tag Aufenthalt)
+                        // Option B: Startdatum = Ausreisedatum der vorherigen Reise (Lückenfüllung)
+                        
+                        let estimatedStart;
+                        if (stayPeriods.length > 0) {
+                            // Startet ab dem Ende der letzten Reise? (Klassischer Lückenfüller)
+                            estimatedStart = new Date(stayPeriods[stayPeriods.length - 1].exitDate);
+                        } else {
+                            // Ganz am Anfang: Wir nehmen an, Einreise war am selben Tag
+                            estimatedStart = new Date(event.date);
                         }
+
+                        // Validierung, falls estimatedStart > event.date
+                        if (estimatedStart > event.date) estimatedStart = new Date(event.date);
+
+                        const days = Math.floor((event.date - estimatedStart) / (1000 * 3600 * 24)) + 1;
+
+                        stayPeriods.push({
+                            number: stayPeriods.length + 1,
+                            entryDate: estimatedStart,
+                            exitDate: event.date,
+                            days: days,
+                            estimated: true,
+                            error: true
+                        });
+                        hasIncomplete = true;
+                        // State bleibt null, wir sind ja jetzt wieder "draußen"
                     }
                 }
+            }
 
-                // --- LÜCKENFÜLLUNG (Falls kein Merge möglich war) ---
+            // 4. SCHRITT: Nachlauf (Offene Einreise am Ende?)
+            if (currentEntry !== null) {
+                // Wir haben noch eine offene Einreise ganz am Ende der Liste.
+                // Die geht bis zum Kontrolldatum.
+                let endDate = new Date(controlDate);
                 
-                // Fall A: Immer noch keine Ausreise?
-                if (entryDate && !exitDate) {
-                    isEstimated = true;
-                    // Suche nächste Einreise in der sortierten Liste
-                    if (i + 1 < rawRows.length && rawRows[i+1].entryDate) {
-                        exitDate = new Date(rawRows[i+1].entryDate);
-                        
-                        // Sicherheitscheck: Falls Sortierung/User-Input seltsam war
-                        if (exitDate < entryDate) exitDate = new Date(controlDate);
-                    } else {
-                        // Letzter Eintrag -> Bis Kontrolldatum
-                        exitDate = new Date(controlDate);
-                    }
-                }
+                // Falls Kontrolldatum VOR Einreise liegt (unlogisch), nimm Einreise (1 Tag)
+                if (endDate < currentEntry.date) endDate = new Date(currentEntry.date);
 
-                // Fall B: Keine Einreise? (Verwaiste Ausreise, die nicht gemerged wurde)
-                if (!entryDate && exitDate) {
-                    isEstimated = true;
-                    // Nimm Ausreise der vorherigen Periode (falls vorhanden)
-                    if (stayPeriods.length > 0) {
-                        entryDate = new Date(stayPeriods[stayPeriods.length - 1].exitDate);
-                    } else {
-                        // Startzeitpunkt unbekannt -> Setze auf Ausreisetag (1 Tag)
-                        entryDate = new Date(exitDate);
-                    }
-                }
+                const days = Math.floor((endDate - currentEntry.date) / (1000 * 3600 * 24)) + 1;
 
-                // --- VALIDIERUNG & SPEICHERN ---
-                if (entryDate && exitDate) {
-                    // Check: Ausreise vor Einreise? (Kann bei Tippfehlern passieren)
-                    if (exitDate < entryDate) {
-                        exitDate = new Date(entryDate);
-                        errorInRow = true;
-                        isEstimated = true;
-                    }
-
-                    const timeDiff = exitDate.getTime() - entryDate.getTime();
-                    const days = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
-
-                    stayPeriods.push({
-                        number: stayPeriods.length + 1,
-                        entryDate: entryDate,
-                        exitDate: exitDate,
-                        days: days,
-                        estimated: isEstimated,
-                        error: errorInRow,
-                        originalIndex: row.index
-                    });
-
-                    if (isEstimated) hasIncomplete = true;
-                }
+                stayPeriods.push({
+                    number: stayPeriods.length + 1,
+                    entryDate: currentEntry.date,
+                    exitDate: endDate,
+                    days: days,
+                    estimated: true, // Ist geschätzt/laufend
+                    error: false // Kein Fehler, sondern einfach "noch aktuell"
+                });
+                // Info: Das setzt hasIncomplete NICHT auf true, wenn es nur der aktuelle Aufenthalt ist
+                // Wenn Sie wollen, dass der aktuelle Aufenthalt auch rot ist, hier:
+                // hasIncomplete = true; 
             }
 
             return { stayPeriods, hasIncomplete };
         }
-
 
         function calculateSchengen() {
             const { stayPeriods, hasIncomplete } = calculateStayPeriods();
