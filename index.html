@@ -516,6 +516,30 @@
     margin-top: 4px;
 }
 
+        /* NEU: Styles für teilweise oder gar nicht gewertete Tage */
+.stay-filtered-info {
+    font-size: 0.85rem;
+    color: #e65100; /* Orange für Warnhinweise */
+    font-weight: 600;
+    display: block;
+    margin-top: 2px;
+}
+
+.stay-ignored {
+    opacity: 0.6;
+    background-color: #f1f1f1 !important;
+    border-color: #ddd !important;
+}
+
+.stay-ignored .stay-number {
+    background-color: #9e9e9e;
+}
+
+.stay-ignored .stay-duration {
+    color: #9e9e9e;
+    text-decoration: line-through;
+}
+        
         .calculated-stay-item {
             background: white;
             border: 1px solid #c3e6cb;
@@ -1524,20 +1548,58 @@
             return { stayPeriods, hasIncomplete };
         }
 
+        // ==========================================
+        // NEUE SCHENGEN BERECHNUNG (Detail-Check)
+        // ==========================================
         function calculateSchengen() {
             const { stayPeriods, hasIncomplete } = calculateStayPeriods();
-            const stays = stayPeriods.map(period => ({ start: period.entryDate, end: period.exitDate }));
-
+            
             const referenceDate = getControlDate();
             const period180Start = new Date(referenceDate);
             period180Start.setDate(period180Start.getDate() - 180);
 
-            // Benutze countUniqueDays
-            const daysInPeriod = countUniqueDays(stays, period180Start, referenceDate);
-            const remainingDays = 90 - daysInPeriod;
-            const isLegal = daysInPeriod <= 90;
+            // Set für global eindeutige Tage (verhindert Doppelzählung über Aufenthalte hinweg)
+            const globalConsumedDays = new Set();
+            let totalCountedDays = 0;
 
-            const calculationPeriod = { start: period180Start, end: referenceDate, mode: 'schengen' };
+            // Grenzen als Timestamps
+            const winStart = period180Start.getTime();
+            const winEnd = referenceDate.getTime();
+
+            // Jeden Aufenthalt im Detail prüfen
+            stayPeriods.forEach(stay => {
+                let current = new Date(stay.entryDate);
+                const end = new Date(stay.exitDate);
+                let stayCount = 0;
+
+                while (current <= end) {
+                    const ts = current.getTime();
+                    const dayStr = current.toISOString().split('T')[0];
+
+                    // 1. Liegt der Tag im 180-Tage-Fenster?
+                    // 2. Wurde der Tag noch NICHT gezählt (Doppelbuchung)?
+                    if (ts >= winStart && ts <= winEnd) {
+                        if (!globalConsumedDays.has(dayStr)) {
+                            globalConsumedDays.add(dayStr);
+                            stayCount++;
+                        }
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+                
+                // Speichern für die Anzeige
+                stay.countedDays = stayCount;
+                totalCountedDays += stayCount;
+            });
+
+            const remainingDays = 90 - totalCountedDays;
+            const isLegal = totalCountedDays <= 90;
+
+            const calculationPeriod = {
+                start: period180Start,
+                end: referenceDate,
+                mode: 'schengen'
+            };
 
             let allowedUntil = null;
             if (remainingDays > 0 && isLegal) {
@@ -1547,17 +1609,30 @@
 
             let nextEntryDate = null;
             if (!isLegal || remainingDays <= 0) {
-                const relevantStays = stays.filter(s => s.end >= period180Start && s.start <= referenceDate);
-                relevantStays.sort((a,b) => a.start - b.start);
-                if (relevantStays.length > 0) {
-                    const firstRelevantEntry = relevantStays[0].start < period180Start ? period180Start : relevantStays[0].start;
-                    nextEntryDate = new Date(firstRelevantEntry);
+                // Heuristik: Wir suchen den ältesten Tag im Fenster, der verfällt
+                // Da wir jetzt "countedDays" haben, schauen wir auf die Aufenthalte, die > 0 Tage beitragen
+                const contributingStays = stayPeriods.filter(s => s.countedDays > 0);
+                
+                if (contributingStays.length > 0) {
+                    // Der Start des ersten Aufenthalts, der zur Summe beiträgt
+                    // (Achtung: Das ist vereinfacht. Exakt wäre: Der erste Tag in globalConsumedDays + 180)
+                    // Wir nehmen hier den Start des Fensters oder Start des ersten Aufenthalts
+                    let firstRelevantDay = contributingStays[0].entryDate;
+                    if (firstRelevantDay < period180Start) firstRelevantDay = period180Start;
+                    
+                    nextEntryDate = new Date(firstRelevantDay);
                     nextEntryDate.setDate(nextEntryDate.getDate() + 180);
                 }
             }
-            displaySchengenResults(daysInPeriod, remainingDays, isLegal, allowedUntil, nextEntryDate, referenceDate, calculationPeriod, hasIncomplete);
+
+            displaySchengenResults(totalCountedDays, remainingDays, isLegal, allowedUntil, nextEntryDate, referenceDate, calculationPeriod, hasIncomplete);
+            // Update List UI mit neuen Details
+            displayCalculatedStays(stayPeriods);
         }
 
+        // ==========================================
+        // NEUE VISUM BERECHNUNG (Detail-Check)
+        // ==========================================
         function calculateVisa() {
             const visaStart = document.getElementById('visaStart').value;
             const visaEnd = document.getElementById('visaEnd').value;
@@ -1578,65 +1653,165 @@
             }
 
             const { stayPeriods, hasIncomplete } = calculateStayPeriods();
-            const stays = stayPeriods.map(period => ({ start: period.entryDate, end: period.exitDate }));
-
+            
             let entriesUsed = stayPeriods.length;
             let violations = [];
+            const globalConsumedDays = new Set();
+            let totalCountedDays = 0;
 
+            const winStart = visaStartDate.getTime();
+            const winEnd = visaEndDate.getTime();
+
+            // Aufenthalte prüfen
             stayPeriods.forEach((stay, index) => {
-                if (stay.entryDate < visaStartDate || stay.exitDate > visaEndDate) {
+                // Genereller Check: Liegt der Zeitraum komplett außerhalb?
+                if (stay.entryDate > visaEndDate || stay.exitDate < visaStartDate) {
+                    // Komplett außerhalb -> 0 Tage
+                    stay.countedDays = 0;
                     violations.push(`${translations[currentLanguage].stayLabel} ${index + 1}: ${translations[currentLanguage].errorStayOutsideVisa}`);
+                } else {
+                    // Tage einzeln zählen
+                    let current = new Date(stay.entryDate);
+                    const end = new Date(stay.exitDate);
+                    let stayCount = 0;
+                    let hasDaysOutside = false;
+
+                    while (current <= end) {
+                        const ts = current.getTime();
+                        const dayStr = current.toISOString().split('T')[0];
+
+                        if (ts >= winStart && ts <= winEnd) {
+                            if (!globalConsumedDays.has(dayStr)) {
+                                globalConsumedDays.add(dayStr);
+                                stayCount++;
+                            }
+                        } else {
+                            hasDaysOutside = true;
+                        }
+                        current.setDate(current.getDate() + 1);
+                    }
+                    stay.countedDays = stayCount;
+                    totalCountedDays += stayCount;
+
+                    if (hasDaysOutside) {
+                        violations.push(`${translations[currentLanguage].stayLabel} ${index + 1}: Teilweise außerhalb des Visums`);
+                    }
                 }
             });
 
-            const totalDays = countUniqueDays(stays, visaStartDate, visaEndDate);
             let isCompliant = true;
 
             if (allowedEntries !== 'multi' && entriesUsed > parseInt(allowedEntries)) {
                 violations.push(`${translations[currentLanguage].tooManyEntries}: ${entriesUsed}/${allowedEntries}`);
                 isCompliant = false;
             }
-            if (totalDays > allowedDays) {
-                violations.push(`${translations[currentLanguage].daysOverLimit}: ${totalDays}/${allowedDays}`);
+
+            if (totalCountedDays > allowedDays) {
+                violations.push(`${translations[currentLanguage].daysOverLimit}: ${totalCountedDays}/${allowedDays}`);
                 isCompliant = false;
             }
-            if (violations.length > 0) isCompliant = false;
+            
+            if (violations.length > 0) {
+                isCompliant = false;
+            }
 
-            const remainingDays = Math.max(0, allowedDays - totalDays);
+            const remainingDays = Math.max(0, allowedDays - totalCountedDays);
             const controlDate = getControlDate();
+            
             let allowedUntil = null;
             if (remainingDays > 0) {
                 let effectiveStart = controlDate < visaStartDate ? visaStartDate : controlDate;
                 allowedUntil = new Date(effectiveStart);
                 allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1);
-                if (allowedUntil > visaEndDate) allowedUntil = visaEndDate;
+                if (allowedUntil > visaEndDate) {
+                    allowedUntil = visaEndDate;
+                }
             }
 
-            calculationPeriodData = { start: visaStartDate, end: visaEndDate, mode: 'visa' };
-            displayVisaResults(totalDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStartDate, visaEndDate, allowedUntil, controlDate, hasIncomplete);
-        }
+            calculationPeriodData = {
+                start: visaStartDate,
+                end: visaEndDate,
+                mode: 'visa'
+            };
 
+            displayVisaResults(totalCountedDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStartDate, visaEndDate, allowedUntil, controlDate, hasIncomplete);
+            // Update List UI mit neuen Details
+            displayCalculatedStays(stayPeriods);
+        }
+            
         // ==========================================
         // 5. DISPLAY & EXPORT FUNCTIONS
         // ==========================================
 
+        // ==========================================
+        // NEUE DISPLAY FUNKTION (Zeigt gewertete Tage an)
+        // ==========================================
         function displayCalculatedStays(stayPeriods) {
             const containerId = currentMode === 'schengen' ? 'schengenCalculatedStays' : 'visaCalculatedStays';
             const container = document.getElementById(containerId);
+
             if (!container) return;
 
             if (stayPeriods.length === 0) {
-                container.innerHTML = `<div class="calculated-stays-empty"><p>${translations[currentLanguage].emptyStaysMessage}</p></div>`;
+                container.innerHTML = `
+                    <div class="calculated-stays-empty">
+                        <p>${translations[currentLanguage].emptyStaysMessage}</p>
+                    </div>
+                `;
                 return;
             }
 
-            let html = `<div class="calculated-stays"><h3>${translations[currentLanguage].calculatedStaysTitle}</h3><div class="stays-list">`;
+            let html = `
+                <div class="calculated-stays">
+                    <h3>${translations[currentLanguage].calculatedStaysTitle}</h3>
+                    <div class="stays-list">
+            `;
+
             stayPeriods.forEach(stay => {
-                const incompleteClass = stay.estimated ? 'stay-incomplete' : '';
-                const incompleteBadge = stay.estimated ? `<span class="stay-incomplete-badge">⚠️ Daten unvollständig (ergänzt)</span>` : '';
-                html += `<div class="calculated-stay-item ${incompleteClass}"><div class="stay-number">${stay.number}</div><div class="stay-details"><div class="stay-period">${stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')} → ${stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}</div><div class="stay-duration">${stay.days} ${stay.days === 1 ? translations[currentLanguage].daysText : translations[currentLanguage].daysTextPlural}</div>${incompleteBadge}</div></div>`;
+                let incompleteClass = stay.estimated ? 'stay-incomplete' : '';
+                let noteHTML = '';
+                
+                // Hinweis für geschätzte Daten
+                if (stay.estimated) {
+                    noteHTML += `<span class="stay-incomplete-badge">⚠️ Daten unvollständig (ergänzt)</span>`;
+                }
+
+                // Logik für teilweise/nicht gewertete Tage
+                // Wenn countedDays definiert ist und kleiner als die Gesamtdauer ist
+                if (typeof stay.countedDays === 'number' && stay.countedDays < stay.days) {
+                    const diff = stay.days - stay.countedDays;
+                    if (stay.countedDays === 0) {
+                        // Gar keine Tage gewertet
+                        incompleteClass += ' stay-ignored';
+                        noteHTML += `<span class="stay-filtered-info">🚫 0 Tage gewertet (außerhalb Zeitraum)</span>`;
+                    } else {
+                        // Teilweise gewertet
+                        noteHTML += `<span class="stay-filtered-info">ℹ️ Nur ${stay.countedDays} Tage angerechnet (${diff} Tage ignoriert)</span>`;
+                    }
+                }
+
+                html += `
+                    <div class="calculated-stay-item ${incompleteClass}">
+                        <div class="stay-number">${stay.number}</div>
+                        <div class="stay-details">
+                            <div class="stay-period">
+                                ${stay.entryDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')} → 
+                                ${stay.exitDate.toLocaleDateString(currentLanguage === 'de' ? 'de-DE' : 'en-GB')}
+                            </div>
+                            <div class="stay-duration">
+                                ${stay.days} ${stay.days === 1 ? translations[currentLanguage].daysText : translations[currentLanguage].daysTextPlural}
+                            </div>
+                            ${noteHTML}
+                        </div>
+                    </div>
+                `;
             });
-            html += `</div></div>`;
+
+            html += `
+                    </div>
+                </div>
+            `;
+
             container.innerHTML = html;
         }
 
