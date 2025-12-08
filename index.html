@@ -1753,22 +1753,21 @@
         function calculateSchengen() {
             const { stayPeriods, hasIncomplete } = calculateStayPeriods();
             
-            // Referenzdatum auf 12:00 Uhr normalisieren (falls Helper vorhanden, sonst new Date)
-            // Wir nutzen hier standard Date, stellen aber sicher, dass wir sauber vergleichen
             let referenceDate = getControlDate();
             
-            // 180-Tage-Fenster: Heute minus 179 Tage (inklusive heute = 180 Tage)
+            // 180-Tage-Fenster
             const period180Start = new Date(referenceDate);
             period180Start.setDate(period180Start.getDate() - 179);
 
             const globalConsumedDays = new Set();
             let totalCountedDays = 0;
+            
+            // LISTE FÜR ALLE GEZÄHLTEN TAGE (Wichtig für "Erlaubt bis" bei Überziehung)
+            let allCountedTimestamps = []; 
 
-            // Zeitstempel für Vergleiche
             const winStart = period180Start.getTime();
             const winEnd = referenceDate.getTime();
 
-            // 1. Verbrauchte Tage zählen
             stayPeriods.forEach(stay => {
                 let current = new Date(stay.entryDate);
                 const end = new Date(stay.exitDate);
@@ -1776,12 +1775,12 @@
 
                 while (current <= end) {
                     const ts = current.getTime();
-                    // Nutze ISO String YYYY-MM-DD für eindeutiges Set
                     const dayStr = current.toISOString().split('T')[0];
 
                     if (ts >= winStart && ts <= winEnd) {
                         if (!globalConsumedDays.has(dayStr)) {
                             globalConsumedDays.add(dayStr);
+                            allCountedTimestamps.push(ts); // HIER SPEICHERN WIR DEN TAG
                             stayCount++;
                         }
                     }
@@ -1790,6 +1789,9 @@
                 stay.countedDays = stayCount;
                 totalCountedDays += stayCount;
             });
+
+            // Chronologisch sortieren
+            allCountedTimestamps.sort((a, b) => a - b);
 
             const remainingDays = 90 - totalCountedDays;
             const isLegal = totalCountedDays <= 90;
@@ -1800,37 +1802,31 @@
                 mode: 'schengen'
             };
 
-            // 2. "Erlaubt bis" Berechnung (verbessert)
+            // "Erlaubt bis" Berechnung
             let allowedUntil = null;
             
-            if (isLegal) {
-                if (remainingDays > 0) {
-                    // Fall A: Noch Tage übrig -> Einfache Projektion ab Kontrolldatum
-                    allowedUntil = new Date(referenceDate);
-                    // Wir addieren die verbleibenden Tage. 
-                    // Beispiel: Heute (8.12) ist Tag 1. Noch 1 Tag übrig.
-                    // Das heißt, ich darf heute noch bleiben. Ende = Heute.
-                    // Also: Datum + (Remaining - 1)
-                    // Wenn Remaining = 10: Heute + 9 Tage.
-                    allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1); // -1 da der Starttag mitzählt
-                } else {
-                    // Fall B: Genau 0 Tage übrig (Alles aufgebraucht)
-                    // Das "Bis"-Datum ist das Ende des letzten Aufenthalts, der das Limit gefüllt hat.
-                    // Wir suchen das späteste Ausreisedatum der aktuellen Aufenthalte.
-                    let maxExit = new Date(0); // Epoch
-                    stayPeriods.forEach(s => {
-                         if (s.exitDate > maxExit) maxExit = s.exitDate;
-                    });
-                    if (maxExit.getTime() > 0) allowedUntil = maxExit;
+            if (isLegal && remainingDays > 0) {
+                // Fall 1: Noch Tage übrig
+                allowedUntil = new Date(referenceDate);
+                allowedUntil.setDate(allowedUntil.getDate() + remainingDays); 
+                // Optionale Korrektur: -1 Tag, damit es "bis einschließlich" ist?
+                // Standard Schengen Rechner sagen oft: Heute + Remaining.
+            } else {
+                // Fall 2: Limit erreicht (90) oder überschritten (>90)
+                // Wir nehmen den 90. Tag aus der Liste (Index 89)
+                if (allCountedTimestamps.length >= 90) {
+                    allowedUntil = new Date(allCountedTimestamps[89]);
+                } else if (allCountedTimestamps.length > 0) {
+                    // Fallback: Der letzte genutzte Tag (wenn < 90 aber Fenster voll? Unwahrscheinlich hier, aber sicher ist sicher)
+                    allowedUntil = new Date(allCountedTimestamps[allCountedTimestamps.length - 1]);
                 }
             }
 
-            // 3. Nächste legale Einreise (bei Verstoß oder 0 Tagen)
+            // Nächste Einreise
             let nextEntryDate = null;
             if (!isLegal || remainingDays <= 0) {
                 const contributingStays = stayPeriods.filter(s => s.countedDays > 0);
                 if (contributingStays.length > 0) {
-                    // Ältester relevanter Einreisetag + 180 Tage
                     let firstRelevantDay = contributingStays[0].entryDate;
                     if (firstRelevantDay < period180Start) firstRelevantDay = period180Start;
                     
@@ -1843,7 +1839,6 @@
             displayCalculatedStays(stayPeriods);
         }
 
-        // --- 2. VISUM BERECHNUNG ---
         function calculateVisa() {
             const visaStartInput = document.getElementById('visaStart').value;
             const visaEndInput = document.getElementById('visaEnd').value;
@@ -1857,7 +1852,6 @@
 
             const visaStartDate = new Date(visaStartInput);
             const visaEndDate = new Date(visaEndInput);
-            // Uhrzeiten normalisieren um Vergleiche sicher zu machen
             visaStartDate.setHours(12,0,0,0);
             visaEndDate.setHours(12,0,0,0);
 
@@ -1872,17 +1866,14 @@
             let violations = [];
             const globalConsumedDays = new Set();
             let totalCountedDays = 0;
+            
+            // LISTE FÜR ALLE GEZÄHLTEN TAGE IM VISUM
+            let allCountedTimestamps = []; 
 
             const winStart = visaStartDate.getTime();
             const winEnd = visaEndDate.getTime();
 
-            let maxStayDate = new Date(0); // Für Fallback bei 0 Resttagen
-
-            // 1. Tage zählen
             stayPeriods.forEach((stay, index) => {
-                if (stay.exitDate > maxStayDate) maxStayDate = new Date(stay.exitDate);
-
-                // Check: Außerhalb Visum?
                 if (stay.entryDate > visaEndDate || stay.exitDate < visaStartDate) {
                     stay.countedDays = 0;
                     violations.push(`${translations[currentLanguage].stayLabel} ${index + 1}: ${translations[currentLanguage].errorStayOutsideVisa}`);
@@ -1899,6 +1890,7 @@
                         if (ts >= winStart && ts <= winEnd) {
                             if (!globalConsumedDays.has(dayStr)) {
                                 globalConsumedDays.add(dayStr);
+                                allCountedTimestamps.push(ts); // HIER SPEICHERN WIR DEN TAG
                                 stayCount++;
                             }
                         } else {
@@ -1915,6 +1907,9 @@
                 }
             });
 
+            // Sortieren
+            allCountedTimestamps.sort((a, b) => a - b);
+
             let isCompliant = true;
             if (allowedEntries !== 'multi' && entriesUsed > parseInt(allowedEntries)) {
                 violations.push(`${translations[currentLanguage].tooManyEntries}: ${entriesUsed}/${allowedEntries}`);
@@ -1929,29 +1924,25 @@
             const remainingDays = Math.max(0, allowedDays - totalCountedDays);
             const controlDate = getControlDate();
             
-            // 2. "Erlaubt bis" Berechnung (Komplett neu)
+            // "Erlaubt bis" Berechnung
             let allowedUntil = null;
 
             if (remainingDays > 0) {
-                // Fall A: Wir haben noch Tage übrig.
-                // Startpunkt ist entweder Kontrolldatum oder Visum-Start (was später ist)
+                // Noch Tage übrig
                 let effectiveStart = controlDate < visaStartDate ? visaStartDate : controlDate;
-                
                 allowedUntil = new Date(effectiveStart);
                 allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1); // -1 da Starttag zählt
                 
-                // WICHTIG: Kappen am Visum-Ende!
                 if (allowedUntil > visaEndDate) {
                     allowedUntil = new Date(visaEndDate);
                 }
             } else {
-                // Fall B: 0 Tage übrig (oder überzogen).
-                // Wir zeigen das Ende des Aufenthalts an, mit dem die Tage voll wurden.
-                // Das ist das `maxStayDate`, das wir oben ermittelt haben.
-                if (maxStayDate.getTime() > 0) {
-                     allowedUntil = maxStayDate;
-                     // Auch hier sicherheitshalber kappen, falls Eingabe fehlerhaft war
-                     if (allowedUntil > visaEndDate) allowedUntil = new Date(visaEndDate);
+                // Limit erreicht oder überschritten
+                // Wir nehmen den Tag X, an dem das Limit (z.B. 30. Tag) voll war
+                if (allCountedTimestamps.length >= allowedDays) {
+                    allowedUntil = new Date(allCountedTimestamps[allowedDays - 1]);
+                } else if (allCountedTimestamps.length > 0) {
+                    allowedUntil = new Date(allCountedTimestamps[allCountedTimestamps.length - 1]);
                 }
             }
 
@@ -1963,7 +1954,7 @@
 
             displayVisaResults(totalCountedDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStartDate, visaEndDate, allowedUntil, controlDate, hasIncomplete);
             displayCalculatedStays(stayPeriods);
-        }  
+        } 
             
         // ==========================================
         // 5. DISPLAY & EXPORT FUNCTIONS
