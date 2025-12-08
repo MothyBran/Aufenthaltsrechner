@@ -502,43 +502,41 @@
             gap: 10px;
         }
 
-        /* NEU: Stil für unvollständige/ergänzte Zeiträume */
-.calculated-stay-item.stay-incomplete {
-    border: 2px solid #dc3545;
-    background-color: #fff5f5;
-}
-
-.stay-incomplete-badge {
-    color: #dc3545;
-    font-size: 0.8rem;
-    font-weight: bold;
-    display: block;
-    margin-top: 4px;
-}
-
-        /* NEU: Styles für teilweise oder gar nicht gewertete Tage */
-.stay-filtered-info {
-    font-size: 0.85rem;
-    color: #e65100; /* Orange für Warnhinweise */
-    font-weight: 600;
-    display: block;
-    margin-top: 2px;
-}
-
-.stay-ignored {
-    opacity: 0.6;
-    background-color: #f1f1f1 !important;
-    border-color: #ddd !important;
-}
-
-.stay-ignored .stay-number {
-    background-color: #9e9e9e;
-}
-
-.stay-ignored .stay-duration {
-    color: #9e9e9e;
-    text-decoration: line-through;
-}
+        .calculated-stay-item.stay-incomplete {
+            border: 2px solid #dc3545;
+            background-color: #fff5f5;
+        }
+        
+        .stay-incomplete-badge {
+            color: #dc3545;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: block;
+            margin-top: 4px;
+        }
+        
+        .stay-filtered-info {
+            font-size: 0.85rem;
+            color: #e65100; /* Orange für Warnhinweise */
+            font-weight: 600;
+            display: block;
+            margin-top: 2px;
+        }
+        
+        .stay-ignored {
+            opacity: 0.6;
+            background-color: #f1f1f1 !important;
+            border-color: #ddd !important;
+        }
+        
+        .stay-ignored .stay-number {
+            background-color: #9e9e9e;
+        }
+        
+        .stay-ignored .stay-duration {
+            color: #9e9e9e;
+            text-decoration: line-through;
+        }
         
         .calculated-stay-item {
             background: white;
@@ -783,6 +781,13 @@
                 padding: 20px;
             }
 
+            .header-logo {
+            width: 80px;        /* Größe anpassen, z.B. 60px bis 100px */
+            height: auto;
+            margin-bottom: 15px; /* Abstand zur Überschrift */
+            border-radius: 12px; /* Optional: leicht abgerundete Ecken */
+            }
+
             .header h1 {
                 font-size: 1.8rem;
             }
@@ -865,6 +870,7 @@
 <body>
     <div class="container">
         <div class="header">
+            <img src="android-chrome-512x512.png" alt="Logo" class="header-logo">
             <h1 id="headerTitle">🇪🇺 Schengen & Visa Aufenthaltsrechner</h1>
             <p id="headerSubtitle">Berechnen Sie Ihre verbleibenden Aufenthaltstage</p>
         </div>
@@ -1920,7 +1926,54 @@
                 staysTableHTML += `</tbody></table></div>`;
             }
 
-            return `<!DOCTYPE html><html lang="${currentLanguage}"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title><style>body {font-family: Arial, sans-serif;font-size: 12pt;line-height: 1.4;color: black;margin: 0;padding: 20px;background: white;}.header {text-align: center;border-bottom: 3px solid black;padding-bottom: 15px;margin-bottom: 30px;}.header h1 {font-size: 18pt;font-weight: bold;margin: 0 0 10px 0;}.header .date {font-size: 11pt;color: #666;}.calculation-period {background: #f0f8ff;border: 2px solid #4169e1;border-radius: 8px;padding: 15px;margin-bottom: 25px;}.calculation-period h2 {font-size: 14pt;font-weight: bold;margin: 0 0 10px 0;color: #1e3a8a;}.period-info {text-align: center;}.period-info strong {font-size: 13pt;color: #1e40af;display: block;margin-bottom: 5px;}.period-info p {font-size: 10pt;color: #666;margin: 0;font-style: italic;}.stays-overview {margin-bottom: 30px;}.stays-overview h2 {font-size: 14pt;font-weight: bold;margin-bottom: 15px;color: #333;border-bottom: 2px solid #ccc;padding-bottom: 8px;}.stays-table {width: 100%;border-collapse: collapse;margin-bottom: 20px;}.stays-table th, .stays-table td {border: 1px solid #999;padding: 8px 12px;text-align: left;}.stays-table th {background: #f5f5f5;font-weight: bold;color: #333;}.stays-table td:first-child {text-align: center;font-weight: bold;}.stays-table td:last-child {text-align: center;}.result-item {display: flex;justify-content: space-between;padding: 10px 0;border-bottom: 1px solid #ccc;}.result-label {font-weight: 600;color: #333;flex: 1;}.result-value {font-weight: bold;text-align: right;flex: 1;}.status-legal { color: #2d5a2d; }.status-illegal { color: #8b0000; }.status-warning { color: #8b6914; }.next-entry-date {background: #f5f5f5;border: 1px solid #999;padding: 15px;margin: 20px 0;text-align: center;border-radius: 5px;}.footer {margin-top: 40px;padding-top: 20px;border-top: 1px solid #ccc;font-size: 9pt;color: #666;text-align: center;}.disclaimer {font-style: italic;margin-bottom: 10px;}</style></head><body><div class="header"><h1>${title}</h1><div class="date">${translations[currentLanguage].createdOn}: ${date}</div></div>${calculationPeriodHTML}${staysTableHTML}<div class="results">${resultsHTML}</div><div class="footer"><div class="disclaimer">${disclaimerText}</div><div>${footerText} | ${translations[currentLanguage].pageInfo}</div></div></body></html>`;
+            return `<!DOCTYPE html><html lang="${currentLanguage}"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title>
+            <style>
+                body {font-family: Arial, sans-serif;font-size: 12pt;line-height: 1.4;color: black;margin: 0;padding: 20px;background: white;}
+                .header {text-align: center;border-bottom: 3px solid black;padding-bottom: 15px;margin-bottom: 30px;}
+                .header h1 {font-size: 18pt;font-weight: bold;margin: 0 0 10px 0;}
+                .header .date {font-size: 11pt;color: #666;}
+                .calculation-period {background: #f0f8ff;border: 2px solid #4169e1;border-radius: 8px;padding: 15px;margin-bottom: 25px;}
+                .calculation-period h2 {font-size: 14pt;font-weight: bold;margin: 0 0 10px 0;color: #1e3a8a;}
+                .period-info {text-align: center;}
+                .period-info strong {font-size: 13pt;color: #1e40af;display: block;margin-bottom: 5px;}
+                .period-info p {font-size: 10pt;color: #666;margin: 0;font-style: italic;}
+                .stays-overview {margin-bottom: 30px;}
+                .stays-overview h2 {font-size: 14pt;font-weight: bold;margin-bottom: 15px;color: #333;border-bottom: 2px solid #ccc;padding-bottom: 8px;}
+                .stays-table {width: 100%;border-collapse: collapse;margin-bottom: 20px;}
+                .stays-table th, .stays-table td {border: 1px solid #999;padding: 8px 12px;text-align: left;}
+                .stays-table th {background: #f5f5f5;font-weight: bold;color: #333;}
+                .stays-table td:first-child {text-align: center;font-weight: bold;}
+                .stays-table td:last-child {text-align: center;}
+                .result-item {display: flex;justify-content: space-between;padding: 10px 0;border-bottom: 1px solid #ccc;}
+                .result-label {font-weight: 600;color: #333;flex: 1;}
+                .result-value {font-weight: bold;text-align: right;flex: 1;}
+                .status-legal { color: #2d5a2d; }.status-illegal { color: #8b0000; }.status-warning { color: #8b6914; }
+                .next-entry-date {background: #f5f5f5;border: 1px solid #999;padding: 15px;margin: 20px 0;text-align: center;border-radius: 5px;}
+                .footer {margin-top: 40px;padding-top: 20px;border-top: 1px solid #ccc;font-size: 9pt;color: #666;text-align: center;}
+                
+                /* NEU: Style für das Druck-Logo */
+                .print-logo {
+                    display: block;
+                    margin: 0 auto 15px auto; /* Zentriert + Abstand nach unten */
+                    width: 60px; /* Kleinere Größe für Footer */
+                    height: auto;
+                }
+                
+                .disclaimer {font-style: italic;margin-bottom: 10px;}
+            </style>
+            </head><body>
+            <div class="header"><h1>${title}</h1><div class="date">${translations[currentLanguage].createdOn}: ${date}</div></div>
+            ${calculationPeriodHTML}
+            ${staysTableHTML}
+            <div class="results">${resultsHTML}</div>
+            
+            <div class="footer">
+                <img src="android-chrome-512x512.png" class="print-logo">
+                
+                <div class="disclaimer">${disclaimerText}</div>
+                <div>${footerText} | ${translations[currentLanguage].pageInfo}</div>
+            </div>
+            </body></html>`;
         }
 
         function showTextExport() {
