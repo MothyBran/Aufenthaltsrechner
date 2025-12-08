@@ -1499,101 +1499,245 @@
         // 4. LOGIC FUNCTIONS (Calculation)
         // ==========================================
 
+        // ==========================================
+        // NEU: INTELLIGENTE LOGIK (Pool-Verfahren)
+        // ==========================================
         function calculateStayPeriods() {
+            const controlDate = getControlDate(); // 12:00 Uhr normalisiert
+            
+            // 1. Alle Eingaben sammeln (unabhängig voneinander)
+            let entries = [];
+            let exits = [];
+
+            for (let i = 1; i <= 10; i++) {
+                const enInput = document.getElementById(`${currentMode}Entry${i}`);
+                const exInput = document.getElementById(`${currentMode}Exit${i}`);
+                
+                if (enInput && enInput.value) {
+                    entries.push(getNormalizedDate(enInput.value));
+                }
+                if (exInput && exInput.value) {
+                    exits.push(getNormalizedDate(exInput.value));
+                }
+            }
+
+            // 2. Chronologisch sortieren
+            entries.sort((a, b) => a - b);
+            exits.sort((a, b) => a - b);
+
             const stayPeriods = [];
             let hasIncomplete = false;
-            const controlDate = getControlDate(); // Ist auf 12:00 Uhr normalisiert
+            
+            // Pointer für Ausreisen, damit wir wissen, welche schon "verbraucht" sind
+            let exitIdx = 0;
+            // Merker für das Ende des letzten Aufenthalts (für lückenlose Anschlussbuchung)
+            let lastExitDate = null;
 
-            // 1. Alle ausgefüllten Zeilen sammeln
-            let rawRows = [];
-            for (let i = 1; i <= 10; i++) {
-                const entryInput = document.getElementById(`${currentMode}Entry${i}`);
-                const exitInput = document.getElementById(`${currentMode}Exit${i}`);
+            // 3. Durchlaufe alle Einreisen und suche passende Ausreisen
+            for (let i = 0; i < entries.length; i++) {
+                const currentEntry = entries[i];
+                const nextEntry = (i + 1 < entries.length) ? entries[i+1] : null;
                 
-                // Zeile nur aufnehmen, wenn mindestens ein Datum existiert
-                if ((entryInput && entryInput.value) || (exitInput && exitInput.value)) {
-                    rawRows.push({
-                        index: i, 
-                        entryDate: entryInput.value ? getNormalizedDate(entryInput.value) : null,
-                        exitDate: exitInput.value ? getNormalizedDate(exitInput.value) : null
-                    });
-                }
-            }
-
-            // 2. ROBUSTE SORTIERUNG: 
-            // Sortiert nach Einreise. Falls Einreise fehlt, wird die Ausreise als Sortierhilfe genommen.
-            // Damit landen auch durcheinander eingegebene Daten in der richtigen zeitlichen Reihenfolge.
-            rawRows.sort((a, b) => {
-                const dateA = a.entryDate || a.exitDate || new Date(8640000000000000); 
-                const dateB = b.entryDate || b.exitDate || new Date(8640000000000000);
-                return dateA - dateB;
-            });
-
-            // 3. Berechnung und Lückenfüllung
-            for (let i = 0; i < rawRows.length; i++) {
-                let row = rawRows[i];
-                let entryDate = row.entryDate;
-                let exitDate = row.exitDate;
+                let matchedExit = null;
                 let isEstimated = false;
 
-                // FALL A: FEHLENDE EINREISE
-                if (!entryDate && exitDate) {
-                    // WICHTIG: Wir schauen auf den zuletzt BERECHNETEN Aufenthalt (stayPeriods.length - 1),
-                    // nicht auf den Index der Schleife 'i', da dieser abweichen kann.
-                    const lastStay = stayPeriods.length > 0 ? stayPeriods[stayPeriods.length - 1] : null;
-
-                    if (lastStay && lastStay.exitDate) {
-                        // Lücke schließen: Startet am Tag der vorherigen Ausreise
-                        entryDate = new Date(lastStay.exitDate); 
-                        isEstimated = true;
-                    } else {
-                        // Kein Vorgänger vorhanden? Dann setzen wir Einreise = Ausreise (1 Tag)
-                        // und markieren es als unvollständig/geschätzt.
-                        entryDate = new Date(exitDate);
-                        isEstimated = true;
+                // Suche die nächste verfügbare Ausreise, die NACH der aktuellen Einreise liegt
+                // Wir überspringen Ausreisen, die VOR der aktuellen Einreise liegen (orphaned exits, werden später behandelt? 
+                // Nein, eigentlich müssten wir die hier schon abfangen, aber für die Logik "Einreise fehlt" 
+                // schauen wir erst, ob wir Entries matchen können).
+                
+                // Wir suchen im exits-Array ab exitIdx
+                let tempExitIdx = exitIdx;
+                while (tempExitIdx < exits.length) {
+                    const candidate = exits[tempExitIdx];
+                    
+                    if (candidate >= currentEntry) {
+                        // Kandidat ist nach Einreise. 
+                        // Prüfen: Liegt er VOR der nächsten Einreise? (oder gibt es keine nächste?)
+                        if (!nextEntry || candidate <= nextEntry) {
+                            matchedExit = candidate;
+                            exitIdx = tempExitIdx + 1; // Ausreise verbraucht
+                        }
+                        break; // Wir haben den erstbesten gültigen Exit gefunden oder abgebrochen
                     }
+                    tempExitIdx++;
                 }
 
-                // FALL B: FEHLENDE AUSREISE
-                if (entryDate && !exitDate) {
+                let finalExitDate;
+
+                if (matchedExit) {
+                    // Fall: Reguläres Ende gefunden
+                    finalExitDate = new Date(matchedExit);
+                } else {
+                    // Fall: Keine passende Ausreise zwischen hier und der nächsten Einreise
+                    // -> Ausreise fehlt!
                     isEstimated = true;
-                    // Gibt es eine nächste Zeile? (Da wir sortiert haben, ist rawRows[i+1] chronologisch später)
-                    if (i + 1 < rawRows.length && rawRows[i+1].entryDate) {
-                        // Bis zur nächsten Einreise
-                        exitDate = new Date(rawRows[i+1].entryDate);
+                    hasIncomplete = true;
+                    
+                    if (nextEntry) {
+                        // Geht bis zur nächsten Einreise
+                        finalExitDate = new Date(nextEntry);
                     } else {
-                        // Kein Nachfolger -> Bis zum Kontrolldatum rechnen
-                        exitDate = new Date(controlDate);
+                        // Keine weitere Einreise -> Geht bis Kontrolldatum
+                        finalExitDate = new Date(controlDate);
+                        // Falls Kontrolldatum VOR Einreise liegt (Userfehler), setze auf Einreise
+                        if (finalExitDate < currentEntry) finalExitDate = new Date(currentEntry);
                     }
                 }
 
-                // Wenn wir jetzt Start- und Enddatum haben (oder geschätzt haben)
-                if (entryDate && exitDate) {
-                    // Validierung: Falls Ausreise VOR Einreise liegt (Tippfehler User), korrigieren
-                    if (exitDate < entryDate) {
-                        exitDate = new Date(entryDate);
-                    }
+                // Speichern
+                const days = Math.floor((finalExitDate - currentEntry) / (1000 * 3600 * 24)) + 1;
+                stayPeriods.push({
+                    number: stayPeriods.length + 1,
+                    entryDate: currentEntry,
+                    exitDate: finalExitDate,
+                    days: days,
+                    estimated: isEstimated
+                });
 
-                    // Dauer berechnen (inklusive Starttag)
-                    const timeDiff = exitDate.getTime() - entryDate.getTime();
-                    const days = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
-
-                    stayPeriods.push({
-                        number: stayPeriods.length + 1,
-                        entryDate: entryDate,
-                        exitDate: exitDate,
-                        days: days,
-                        estimated: isEstimated,
-                        originalIndex: row.index
-                    });
-
-                    if (isEstimated) hasIncomplete = true;
-                }
+                lastExitDate = finalExitDate;
             }
 
-            // Wichtig: Anzeige aktualisieren, damit der User das Ergebnis sieht
-            displayCalculatedStays(stayPeriods);
+            // 4. Verwaiste Ausreisen behandeln (Einreise fehlt)
+            // Wenn wir Einreisen abgearbeitet haben, aber noch Ausreisen übrig sind, 
+            // oder wenn Ausreisen übersprungen wurden (liegen vor der betrachteten Einreise).
             
+            // Einfacherer Ansatz für "Orphaned Exits":
+            // Wir müssen eigentlich eine globale Timeline bauen. 
+            // Die obige Schleife hat Einträge gematcht. Aber was ist mit Exits, die wir übersprungen haben 
+            // oder die ganz am Ende stehen?
+            
+            // KORREKTUR DES ALGORITHMUS FÜR GEMISCHTE LISTE:
+            // Wir bauen die Liste neu auf, indem wir die obigen Ergebnisse verwerfen und 
+            // eine strikte Ereignis-Schleife bauen? Nein, das wird zu komplex.
+            
+            // Besser: Wir prüfen, welche Exits NICHT von der obigen Schleife "konsumiert" wurden.
+            // Das ist schwierig, da `exitIdx` in der Schleife springt.
+            
+            // LÖSUNG: Wir sammeln alle "genutzten" Exit-Objekte (Dates) in einem Set.
+            // Alle ungenutzten Exits werden als "Fehlende Einreise" behandelt.
+            // ABER: Sie müssen zeitlich korrekt einsortiert werden.
+            
+            // Daher: Neuer Ansatz -> REINE CHRONOLOGISCHE VERARBEITUNG
+            return calculateByChronology(entries, exits, controlDate);
+        }
+
+        function calculateByChronology(entries, exits, controlDate) {
+            let allEvents = [];
+            
+            // Events markieren
+            entries.forEach(d => allEvents.push({ date: d, type: 'entry' }));
+            exits.forEach(d => allEvents.push({ date: d, type: 'exit' }));
+            
+            // Sortieren: Bei gleichem Datum erst Einreise, dann Ausreise (eintägiger Aufenthalt)
+            allEvents.sort((a, b) => {
+                if (a.date.getTime() !== b.date.getTime()) return a.date - b.date;
+                return a.type === 'entry' ? -1 : 1; 
+            });
+
+            const stayPeriods = [];
+            let hasIncomplete = false;
+            
+            // Zustandsautomat
+            let currentEntryDate = null;
+            let lastPeriodEnd = null;
+
+            for (let i = 0; i < allEvents.length; i++) {
+                const evt = allEvents[i];
+                
+                if (evt.type === 'entry') {
+                    if (currentEntryDate !== null) {
+                        // FEHLENDE AUSREISE: Es kommt eine Einreise, obwohl wir schon "drin" sind.
+                        // Regel: Alte Einreise geht bis zur neuen Einreise.
+                        let endDate = new Date(evt.date);
+                        let days = Math.floor((endDate - currentEntryDate) / (1000 * 3600 * 24)) + 1;
+                        
+                        stayPeriods.push({
+                            number: stayPeriods.length + 1,
+                            entryDate: currentEntryDate,
+                            exitDate: endDate,
+                            days: days,
+                            estimated: true // Rot markieren
+                        });
+                        hasIncomplete = true;
+                        lastPeriodEnd = endDate;
+                        
+                        // Neue Einreise beginnt jetzt
+                        currentEntryDate = evt.date;
+                    } else {
+                        // Normaler Start
+                        currentEntryDate = evt.date;
+                    }
+                } 
+                else if (evt.type === 'exit') {
+                    if (currentEntryDate !== null) {
+                        // NORMALER FALL: Einreise war gesetzt, jetzt Ausreise.
+                        let endDate = evt.date;
+                        // Datum Check
+                        if (endDate < currentEntryDate) endDate = currentEntryDate;
+                        
+                        let days = Math.floor((endDate - currentEntryDate) / (1000 * 3600 * 24)) + 1;
+                        
+                        stayPeriods.push({
+                            number: stayPeriods.length + 1,
+                            entryDate: currentEntryDate,
+                            exitDate: endDate,
+                            days: days,
+                            estimated: false
+                        });
+                        lastPeriodEnd = endDate;
+                        currentEntryDate = null; // Wir sind "draußen"
+                    } else {
+                        // FEHLENDE EINREISE: Ausreise ohne offene Einreise.
+                        // Regel: Einreise = Datum der vorherigen Ausreise (oder Start Datum?)
+                        // User sagte: "Einreise = vorherige Ausreise"
+                        
+                        let startDate;
+                        if (lastPeriodEnd) {
+                            startDate = new Date(lastPeriodEnd);
+                        } else {
+                            // Ganz am Anfang fehlt Einreise -> Setze auf Ausreisedatum (1 Tag)
+                            startDate = new Date(evt.date);
+                        }
+                        
+                        let endDate = evt.date;
+                        if (endDate < startDate) endDate = startDate;
+                        
+                        let days = Math.floor((endDate - startDate) / (1000 * 3600 * 24)) + 1;
+                        
+                        stayPeriods.push({
+                            number: stayPeriods.length + 1,
+                            entryDate: startDate,
+                            exitDate: endDate,
+                            days: days,
+                            estimated: true
+                        });
+                        hasIncomplete = true;
+                        lastPeriodEnd = endDate;
+                    }
+                }
+            }
+            
+            // Am Ende prüfen: Sind wir noch "drin" (Einreise ohne Ausreise)?
+            if (currentEntryDate !== null) {
+                // Regel: Bis zum Kontrolldatum
+                let endDate = new Date(controlDate);
+                // Fallback, falls Kontrolldatum in Vergangenheit
+                if (endDate < currentEntryDate) endDate = new Date(currentEntryDate);
+                
+                let days = Math.floor((endDate - currentEntryDate) / (1000 * 3600 * 24)) + 1;
+                
+                stayPeriods.push({
+                    number: stayPeriods.length + 1,
+                    entryDate: currentEntryDate,
+                    exitDate: endDate,
+                    days: days,
+                    estimated: true
+                });
+                hasIncomplete = true;
+            }
+
+            displayCalculatedStays(stayPeriods);
             return { stayPeriods, hasIncomplete };
         }
 
