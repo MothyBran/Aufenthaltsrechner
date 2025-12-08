@@ -1507,7 +1507,7 @@
         }
 
         // ==========================================
-        // 4. LOGIC FUNCTIONS (BEREINIGT & VERBESSERT)
+        // 4. LOGIC FUNCTIONS (ROBUST & KORRIGIERT)
         // ==========================================
 
         function calculateStayPeriods() {
@@ -1542,25 +1542,24 @@
                 let exitDate = row.exitDate;
                 let isEstimated = false;
 
-                // 1. FEHLENDE EINREISE (Vorgänger-Exit nehmen)
+                // 1. FEHLENDE EINREISE
                 if (!entryDate && exitDate) {
                     if (i > 0 && stayPeriods[i-1].exitDate) {
                         entryDate = new Date(stayPeriods[i-1].exitDate);
                         isEstimated = true;
                     } else {
-                        entryDate = new Date(exitDate); // Fallback: 1-Tages-Trip
+                        entryDate = new Date(exitDate); 
                         isEstimated = true;
                     }
                 }
 
-                // 2. FEHLENDE AUSREISE (Nächste Einreise oder Kontrolldatum)
+                // 2. FEHLENDE AUSREISE
                 if (entryDate && !exitDate) {
                     isEstimated = true;
                     if (i + 1 < rawRows.length && rawRows[i+1].entryDate) {
                         exitDate = new Date(rawRows[i+1].entryDate);
                     } else {
                         exitDate = new Date(controlDate);
-                        // Falls Kontrolldatum in Vergangenheit liegt (User-Fehler), setze auf Einreise
                         if (exitDate < entryDate) exitDate = new Date(entryDate);
                     }
                 }
@@ -1596,8 +1595,10 @@
 
             const globalConsumedDays = new Set();
             let totalCountedDays = 0;
+            
+            // WICHTIG: Liste aller gezählten Zeitstempel für Limit-Berechnung
             let allCountedTimestamps = []; 
-            let lastExitInWindow = new Date(0); // Für "Bis"-Datum Logik
+            let lastExitInWindow = new Date(0); 
 
             const winStart = period180Start.getTime();
             const winEnd = referenceDate.getTime();
@@ -1607,7 +1608,7 @@
                 const end = new Date(stay.exitDate);
                 let stayCount = 0;
 
-                // Merke das späteste Ausreisedatum, das wir berechnet haben
+                // Merke späteste Ausreise für Fallback
                 if (stay.exitDate > lastExitInWindow) lastExitInWindow = new Date(stay.exitDate);
 
                 while (current <= end) {
@@ -1617,7 +1618,7 @@
                     if (ts >= winStart && ts <= winEnd) {
                         if (!globalConsumedDays.has(dayStr)) {
                             globalConsumedDays.add(dayStr);
-                            allCountedTimestamps.push(ts);
+                            allCountedTimestamps.push(ts); // HIER muss der Tag gespeichert werden
                             stayCount++;
                         }
                     }
@@ -1627,6 +1628,7 @@
                 totalCountedDays += stayCount;
             });
 
+            // Sortieren ist entscheidend
             allCountedTimestamps.sort((a, b) => a - b);
 
             const remainingDays = 90 - totalCountedDays;
@@ -1638,24 +1640,25 @@
                 mode: 'schengen'
             };
 
-            // VERBESSERTE LOGIK: Erlaubt bis
+            // "Erlaubt bis" Logik
             let allowedUntil = null;
+            
             if (isLegal && remainingDays > 0) {
-                // Basis ist das spätere Datum aus: Heute(Kontrolldatum) ODER Letzter geplanter Ausreise
-                // Damit decken wir den Fall ab: "Ich habe schon Reisen geplant, wie lange darf ich DANACH noch bleiben?"
+                // FALL 1: Legal und noch Tage übrig
                 let baseDate = referenceDate > lastExitInWindow ? referenceDate : lastExitInWindow;
                 allowedUntil = new Date(baseDate);
                 allowedUntil.setDate(allowedUntil.getDate() + remainingDays);
-                // Kleine Korrektur: Wenn baseDate = LastExit, ist dieser Tag schon verbraucht?
-                // Ja, LastExit ist verbraucht. Also + Remaining ist korrekt (startet am Tag danach).
-                // Bei ReferenceDate (heute) ist heute evtl. auch verbraucht.
-                // Wir lassen es bei einfacher Addition für die Schätzung.
             } else {
-                // Limit erreicht
+                // FALL 2: Limit erreicht (0 Rest) oder Überschritten
+                // Wir suchen den Tag, an dem die 90. Einheit verbraucht wurde.
                 if (allCountedTimestamps.length >= 90) {
-                    allowedUntil = new Date(allCountedTimestamps[89]);
+                    allowedUntil = new Date(allCountedTimestamps[89]); // Der 90. Tag
                 } else if (allCountedTimestamps.length > 0) {
+                    // Fallback: Wenn weniger als 90 Tage im Fenster sind (aber durch Überschneidungen/Fehler wir hier landen), nimm den letzten
                     allowedUntil = new Date(allCountedTimestamps[allCountedTimestamps.length - 1]);
+                } else {
+                    // Fallback 2: Wenn gar nichts gefunden wurde (unwahrscheinlich), nimm letzte Ausreise
+                    allowedUntil = lastExitInWindow.getTime() > 0 ? lastExitInWindow : referenceDate;
                 }
             }
 
@@ -1699,6 +1702,8 @@
             let violations = [];
             const globalConsumedDays = new Set();
             let totalCountedDays = 0;
+            
+            // WICHTIG: Liste aller gezählten Tage
             let allCountedTimestamps = []; 
             let lastExitInVisa = new Date(0);
 
@@ -1715,6 +1720,7 @@
                     let stayCount = 0;
                     let hasDaysOutside = false;
 
+                    // Fallback Datum merken
                     if (stay.exitDate > lastExitInVisa) lastExitInVisa = new Date(stay.exitDate);
 
                     while (current <= end) {
@@ -1724,7 +1730,7 @@
                         if (ts >= winStart && ts <= winEnd) {
                             if (!globalConsumedDays.has(dayStr)) {
                                 globalConsumedDays.add(dayStr);
-                                allCountedTimestamps.push(ts); 
+                                allCountedTimestamps.push(ts); // Tag speichern
                                 stayCount++;
                             }
                         } else {
@@ -1757,29 +1763,29 @@
             const remainingDays = Math.max(0, allowedDays - totalCountedDays);
             const controlDate = getControlDate();
             
-            // VERBESSERTE LOGIK: Erlaubt bis
+            // "Erlaubt bis" Logik
             let allowedUntil = null;
 
             if (remainingDays > 0) {
-                // Startpunkt ist entweder ControlDate oder VisaStart oder Letzter-Aufenthalt
+                // FALL 1: Noch Tage übrig
                 let effectiveStart = controlDate < visaStartDate ? visaStartDate : controlDate;
                 if (lastExitInVisa > effectiveStart) effectiveStart = lastExitInVisa;
 
                 allowedUntil = new Date(effectiveStart);
-                // Wir addieren die verbleibenden Tage. 
-                // Wenn wir vom Ende des letzten Aufenthalts rechnen, addieren wir einfach drauf.
                 allowedUntil.setDate(allowedUntil.getDate() + remainingDays);
                 
-                // Darf nicht länger als Visumende sein
                 if (allowedUntil > visaEndDate) {
                     allowedUntil = new Date(visaEndDate);
                 }
             } else {
-                // Limit erreicht
+                // FALL 2: Limit erreicht (0 Rest) oder Überschritten
                 if (allCountedTimestamps.length >= allowedDays) {
                     allowedUntil = new Date(allCountedTimestamps[allowedDays - 1]);
                 } else if (allCountedTimestamps.length > 0) {
                     allowedUntil = new Date(allCountedTimestamps[allCountedTimestamps.length - 1]);
+                } else {
+                     // Fallback 2: Wenn gar nichts gefunden wurde (z.B. Visum beginnt erst morgen)
+                     allowedUntil = lastExitInVisa.getTime() > 0 ? lastExitInVisa : controlDate;
                 }
             }
 
