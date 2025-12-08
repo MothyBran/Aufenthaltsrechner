@@ -1513,59 +1513,97 @@
         function calculateStayPeriods() {
             const stayPeriods = [];
             let hasIncomplete = false;
-            const controlDate = getControlDate();
+            // Kontrolldatum holen (ist bereits auf 12:00 normiert durch vorherigen Fix)
+            const controlDate = getControlDate(); 
 
-            // Wir sammeln alle Zeilen (1-10)
+            // 1. Alle ausgefüllten Zeilen sammeln
             let rawRows = [];
             for (let i = 1; i <= 10; i++) {
                 const entryInput = document.getElementById(`${currentMode}Entry${i}`);
                 const exitInput = document.getElementById(`${currentMode}Exit${i}`);
                 
+                // Nur berücksichtigen, wenn min. ein Feld gefüllt ist
                 if ((entryInput && entryInput.value) || (exitInput && exitInput.value)) {
                     rawRows.push({
                         index: i,
-                        entryDate: entryInput.value ? getNormalizedDate(entryInput.value) : null,
-                        exitDate: exitInput.value ? getNormalizedDate(exitInput.value) : null
+                        // Helper getNormalizedDate nutzen (oder new Date falls Helper fehlt)
+                        entryDate: entryInput.value ? (typeof getNormalizedDate === 'function' ? getNormalizedDate(entryInput.value) : new Date(entryInput.value)) : null,
+                        exitDate: exitInput.value ? (typeof getNormalizedDate === 'function' ? getNormalizedDate(exitInput.value) : new Date(exitInput.value)) : null
                     });
                 }
             }
 
-            // Nach Einreise sortieren
+            // 2. Sortieren: Primär nach Einreise, sekundär nach Ausreise (falls Einreise fehlt)
             rawRows.sort((a, b) => {
-                if(a.entryDate && b.entryDate) return a.entryDate - b.entryDate;
-                return a.index - b.index;
+                const dateA = a.entryDate || a.exitDate;
+                const dateB = b.entryDate || b.exitDate;
+                return dateA - dateB;
             });
 
+            // 3. Durchlaufen und Zeiträume bilden (mit "Look-Ahead" für Zusammenführung)
             for (let i = 0; i < rawRows.length; i++) {
                 let row = rawRows[i];
                 let entryDate = row.entryDate;
                 let exitDate = row.exitDate;
                 let isEstimated = false;
+                let mergedWithNext = false;
 
-                // 1. FEHLENDE EINREISE
-                if (!entryDate && exitDate) {
-                    if (i > 0 && stayPeriods[i-1].exitDate) {
-                        entryDate = new Date(stayPeriods[i-1].exitDate);
-                        isEstimated = true;
-                    } else {
-                        entryDate = new Date(exitDate); 
-                        isEstimated = true;
-                    }
-                }
-
-                // 2. FEHLENDE AUSREISE
+                // FALL A: Einreise vorhanden, aber KEINE Ausreise in dieser Zeile
                 if (entryDate && !exitDate) {
-                    isEstimated = true;
-                    if (i + 1 < rawRows.length && rawRows[i+1].entryDate) {
-                        exitDate = new Date(rawRows[i+1].entryDate);
-                    } else {
-                        exitDate = new Date(controlDate);
-                        if (exitDate < entryDate) exitDate = new Date(entryDate);
+                    // Prüfen wir die NÄCHSTE Zeile (Look-Ahead)
+                    if (i + 1 < rawRows.length) {
+                        const nextRow = rawRows[i+1];
+                        
+                        // Hat die nächste Zeile eine Ausreise, aber KEINE Einreise?
+                        // Und liegt die Ausreise chronologisch NACH unserer Einreise?
+                        if (!nextRow.entryDate && nextRow.exitDate && nextRow.exitDate > entryDate) {
+                            // TREFFER: Wir ziehen die Zeilen zusammen!
+                            exitDate = nextRow.exitDate;
+                            mergedWithNext = true; 
+                            // Wir markieren das NICHT als estimated/rot, da wir jetzt Start+Ende haben.
+                            // Es sei denn, Sie wollen es trotzdem rot, weil die Eingabe "schlampig" war. 
+                            // Hier gehe ich davon aus: Zusammengezogen = Gültiger Zeitraum = Grün.
+                            
+                            // WICHTIG: Die nächste Zeile im nächsten Schleifendurchlauf überspringen, da sie jetzt verbraucht ist
+                            i++; 
+                        }
+                    }
+
+                    // Wenn wir NICHTS zum Zusammenfügen gefunden haben -> Lückenfüll-Logik (Rot)
+                    if (!exitDate) {
+                        isEstimated = true;
+                        // Nächste bekannte Einreise suchen oder ControlDate
+                        if (i + 1 < rawRows.length && rawRows[i+1].entryDate) {
+                            exitDate = new Date(rawRows[i+1].entryDate);
+                        } else {
+                            exitDate = new Date(controlDate);
+                        }
                     }
                 }
 
+                // FALL B: Keine Einreise, aber Ausreise vorhanden (Verwaiste Ausreise)
+                // (Dies wird nur ausgeführt, wenn die Zeile NICHT vorher im "Merge" konsumiert wurde)
+                else if (!entryDate && exitDate) {
+                    isEstimated = true;
+                    // Startdatum raten: Ausreise der vorherigen Periode
+                    if (stayPeriods.length > 0) {
+                        entryDate = new Date(stayPeriods[stayPeriods.length - 1].exitDate);
+                    } else {
+                        // Ganz am Anfang ohne Start? Fallback auf Ausreise (1 Tag) oder Fehler
+                        entryDate = new Date(exitDate); 
+                    }
+                }
+
+                // FALL C: Beides vorhanden (Standard) -> Nichts tun, Daten sind da.
+
+                // Zeitraum speichern, wenn wir Daten haben
                 if (entryDate && exitDate) {
-                    if (exitDate < entryDate) exitDate = new Date(entryDate);
+                    // Sicherheitscheck: Ende vor Start korrigieren
+                    if (exitDate < entryDate) {
+                         // Fallback, falls Sortierung oder Eingabe unlogisch war
+                        exitDate = new Date(entryDate); 
+                    }
+
                     const timeDiff = exitDate.getTime() - entryDate.getTime();
                     const days = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
 
@@ -1574,14 +1612,15 @@
                         entryDate: entryDate,
                         exitDate: exitDate,
                         days: days,
-                        estimated: isEstimated,
+                        estimated: isEstimated, // Nur rot, wenn wirklich Daten erraten wurden (nicht bei Merge)
                         originalIndex: row.index
                     });
 
                     if (isEstimated) hasIncomplete = true;
                 }
             }
-            
+
+            // Ergebnis zurückgeben
             return { stayPeriods, hasIncomplete };
         }
 
