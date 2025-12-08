@@ -1087,6 +1087,7 @@
                 statusLegal: '✅ Legal',
                 statusExhausted: '⚠️ Ausgeschöpft (0 Tage übrig)',
                 statusViolation: '❌ Überschreitung',
+                overstaySuffix: 'zu viel',
                 statusVisaValid: '✅ Visum-konform',
                 statusVisaViolation: '❌ Visum-Verletzung',
                 nextEntryText: '🚪 Nächstmögliche legale Einreise:',
@@ -1177,6 +1178,7 @@
                 statusLegal: '✅ Legal',
                 statusExhausted: '⚠️ Exhausted (0 days left)',
                 statusViolation: '❌ Violation',
+                overstaySuffix: 'over limit',
                 statusVisaValid: '✅ Visa compliant',
                 statusVisaViolation: '❌ Visa violation',
                 nextEntryText: '🚪 Next possible legal entry:',
@@ -1259,10 +1261,15 @@
 
         function getControlDate() {
             const input = document.getElementById('controlDateInput');
+            let d;
             if (input && input.value) {
-                return getNormalizedDate(input.value);
+                d = new Date(input.value);
+            } else {
+                d = new Date(); // Heute
             }
-            return getTodayMEZDateOnly();
+            // Wichtig: Auf 12:00 setzen für saubere Vergleiche
+            d.setHours(12, 0, 0, 0);
+            return d;
         }
 
         // --- HILFSFUNKTION: Verhindert Doppelzählung von Tagen ---
@@ -1503,9 +1510,6 @@
         // 4. LOGIC FUNCTIONS (Calculation)
         // ==========================================
 
-        // ==========================================
-        // NEU: INTELLIGENTE LOGIK (Pool-Verfahren)
-        // ==========================================
         function calculateStayPeriods() {
             const controlDate = getControlDate(); // 12:00 Uhr normalisiert
             
@@ -1745,41 +1749,42 @@
             return { stayPeriods, hasIncomplete };
         }
 
+        // --- 1. SCHENGEN BERECHNUNG ---
         function calculateSchengen() {
             const { stayPeriods, hasIncomplete } = calculateStayPeriods();
             
-            // Referenzdatum (Kontrolldatum) ist 12:00 Uhr
-            const referenceDate = getControlDate(); 
-            const period180Start = new Date(referenceDate);
+            // Referenzdatum auf 12:00 Uhr normalisieren (falls Helper vorhanden, sonst new Date)
+            // Wir nutzen hier standard Date, stellen aber sicher, dass wir sauber vergleichen
+            let referenceDate = getControlDate();
             
-            // 180 Tage Fenster INKLUSIVE heute. 
-            // Also: Heute minus 179 Tage. (Tag 1 bis Tag 180 = 180 Tage)
+            // 180-Tage-Fenster: Heute minus 179 Tage (inklusive heute = 180 Tage)
+            const period180Start = new Date(referenceDate);
             period180Start.setDate(period180Start.getDate() - 179);
 
             const globalConsumedDays = new Set();
             let totalCountedDays = 0;
 
+            // Zeitstempel für Vergleiche
             const winStart = period180Start.getTime();
             const winEnd = referenceDate.getTime();
 
+            // 1. Verbrauchte Tage zählen
             stayPeriods.forEach(stay => {
-                // Iteration beginnt bei 12:00 Uhr
-                let current = new Date(stay.entryDate); 
+                let current = new Date(stay.entryDate);
                 const end = new Date(stay.exitDate);
                 let stayCount = 0;
 
                 while (current <= end) {
                     const ts = current.getTime();
+                    // Nutze ISO String YYYY-MM-DD für eindeutiges Set
                     const dayStr = current.toISOString().split('T')[0];
 
-                    // Check: Im Fenster? & Noch nicht gezählt?
                     if (ts >= winStart && ts <= winEnd) {
                         if (!globalConsumedDays.has(dayStr)) {
                             globalConsumedDays.add(dayStr);
                             stayCount++;
                         }
                     }
-                    // +1 Tag (bleibt 12:00 Uhr)
                     current.setDate(current.getDate() + 1);
                 }
                 stay.countedDays = stayCount;
@@ -1789,38 +1794,56 @@
             const remainingDays = 90 - totalCountedDays;
             const isLegal = totalCountedDays <= 90;
 
-            const calculationPeriod = { 
-                start: period180Start, 
-                end: referenceDate, 
-                mode: 'schengen' 
+            const calculationPeriod = {
+                start: period180Start,
+                end: referenceDate,
+                mode: 'schengen'
             };
 
+            // 2. "Erlaubt bis" Berechnung (verbessert)
             let allowedUntil = null;
-            if (remainingDays > 0 && isLegal) {
-                allowedUntil = new Date(referenceDate);
-                allowedUntil.setDate(allowedUntil.getDate() + remainingDays); // Ab morgen zählen
+            
+            if (isLegal) {
+                if (remainingDays > 0) {
+                    // Fall A: Noch Tage übrig -> Einfache Projektion ab Kontrolldatum
+                    allowedUntil = new Date(referenceDate);
+                    // Wir addieren die verbleibenden Tage. 
+                    // Beispiel: Heute (8.12) ist Tag 1. Noch 1 Tag übrig.
+                    // Das heißt, ich darf heute noch bleiben. Ende = Heute.
+                    // Also: Datum + (Remaining - 1)
+                    // Wenn Remaining = 10: Heute + 9 Tage.
+                    allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1); // -1 da der Starttag mitzählt
+                } else {
+                    // Fall B: Genau 0 Tage übrig (Alles aufgebraucht)
+                    // Das "Bis"-Datum ist das Ende des letzten Aufenthalts, der das Limit gefüllt hat.
+                    // Wir suchen das späteste Ausreisedatum der aktuellen Aufenthalte.
+                    let maxExit = new Date(0); // Epoch
+                    stayPeriods.forEach(s => {
+                         if (s.exitDate > maxExit) maxExit = s.exitDate;
+                    });
+                    if (maxExit.getTime() > 0) allowedUntil = maxExit;
+                }
             }
 
+            // 3. Nächste legale Einreise (bei Verstoß oder 0 Tagen)
             let nextEntryDate = null;
             if (!isLegal || remainingDays <= 0) {
-                // Suche den ältesten gewerteten Tag
                 const contributingStays = stayPeriods.filter(s => s.countedDays > 0);
                 if (contributingStays.length > 0) {
-                    // Wir nehmen den Start des relevantesten Aufenthalts
-                    // (vereinfacht, exakt wäre komplexer gleitender Durchschnitt)
+                    // Ältester relevanter Einreisetag + 180 Tage
                     let firstRelevantDay = contributingStays[0].entryDate;
                     if (firstRelevantDay < period180Start) firstRelevantDay = period180Start;
                     
                     nextEntryDate = new Date(firstRelevantDay);
-                    // Wann ist dieser Tag 180 Tage her? Tag X + 180
                     nextEntryDate.setDate(nextEntryDate.getDate() + 180);
                 }
             }
-            
+
             displaySchengenResults(totalCountedDays, remainingDays, isLegal, allowedUntil, nextEntryDate, referenceDate, calculationPeriod, hasIncomplete);
             displayCalculatedStays(stayPeriods);
         }
 
+        // --- 2. VISUM BERECHNUNG ---
         function calculateVisa() {
             const visaStartInput = document.getElementById('visaStart').value;
             const visaEndInput = document.getElementById('visaEnd').value;
@@ -1832,9 +1855,11 @@
                 return;
             }
 
-            // Auch Visumdaten auf 12:00 normalisieren
-            const visaStartDate = getNormalizedDate(visaStartInput);
-            const visaEndDate = getNormalizedDate(visaEndInput);
+            const visaStartDate = new Date(visaStartInput);
+            const visaEndDate = new Date(visaEndInput);
+            // Uhrzeiten normalisieren um Vergleiche sicher zu machen
+            visaStartDate.setHours(12,0,0,0);
+            visaEndDate.setHours(12,0,0,0);
 
             if (visaEndDate <= visaStartDate) {
                 alert(translations[currentLanguage].errorVisaDates);
@@ -1851,7 +1876,13 @@
             const winStart = visaStartDate.getTime();
             const winEnd = visaEndDate.getTime();
 
+            let maxStayDate = new Date(0); // Für Fallback bei 0 Resttagen
+
+            // 1. Tage zählen
             stayPeriods.forEach((stay, index) => {
+                if (stay.exitDate > maxStayDate) maxStayDate = new Date(stay.exitDate);
+
+                // Check: Außerhalb Visum?
                 if (stay.entryDate > visaEndDate || stay.exitDate < visaStartDate) {
                     stay.countedDays = 0;
                     violations.push(`${translations[currentLanguage].stayLabel} ${index + 1}: ${translations[currentLanguage].errorStayOutsideVisa}`);
@@ -1898,18 +1929,41 @@
             const remainingDays = Math.max(0, allowedDays - totalCountedDays);
             const controlDate = getControlDate();
             
+            // 2. "Erlaubt bis" Berechnung (Komplett neu)
             let allowedUntil = null;
+
             if (remainingDays > 0) {
+                // Fall A: Wir haben noch Tage übrig.
+                // Startpunkt ist entweder Kontrolldatum oder Visum-Start (was später ist)
                 let effectiveStart = controlDate < visaStartDate ? visaStartDate : controlDate;
+                
                 allowedUntil = new Date(effectiveStart);
-                allowedUntil.setDate(allowedUntil.getDate() + remainingDays);
-                if (allowedUntil > visaEndDate) allowedUntil = visaEndDate;
+                allowedUntil.setDate(allowedUntil.getDate() + remainingDays - 1); // -1 da Starttag zählt
+                
+                // WICHTIG: Kappen am Visum-Ende!
+                if (allowedUntil > visaEndDate) {
+                    allowedUntil = new Date(visaEndDate);
+                }
+            } else {
+                // Fall B: 0 Tage übrig (oder überzogen).
+                // Wir zeigen das Ende des Aufenthalts an, mit dem die Tage voll wurden.
+                // Das ist das `maxStayDate`, das wir oben ermittelt haben.
+                if (maxStayDate.getTime() > 0) {
+                     allowedUntil = maxStayDate;
+                     // Auch hier sicherheitshalber kappen, falls Eingabe fehlerhaft war
+                     if (allowedUntil > visaEndDate) allowedUntil = new Date(visaEndDate);
+                }
             }
 
-            calculationPeriodData = { start: visaStartDate, end: visaEndDate, mode: 'visa' };
+            calculationPeriodData = {
+                start: visaStartDate,
+                end: visaEndDate,
+                mode: 'visa'
+            };
+
             displayVisaResults(totalCountedDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStartDate, visaEndDate, allowedUntil, controlDate, hasIncomplete);
             displayCalculatedStays(stayPeriods);
-        }    
+        }  
             
         // ==========================================
         // 5. DISPLAY & EXPORT FUNCTIONS
@@ -1986,8 +2040,10 @@
 
         function displaySchengenResults(usedDays, remainingDays, isLegal, allowedUntil, nextEntryDate, referenceDate, calculationPeriod, hasIncomplete) {
             calculationPeriodData = calculationPeriod;
+
             const resultsDiv = document.getElementById('results');
             const resultsList = document.getElementById('resultsList');
+
             let statusText, statusClass;
 
             if (isLegal && remainingDays > 0) {
@@ -1997,17 +2053,55 @@
                 statusText = translations[currentLanguage].statusExhausted;
                 statusClass = 'status-warning';
             } else {
-                statusText = translations[currentLanguage].statusViolation;
+                // NEU: Berechnung der Überschreitung
+                const overstay = usedDays - 90;
+                statusText = `${translations[currentLanguage].statusViolation} (${overstay} ${translations[currentLanguage].daysTextPlural} ${translations[currentLanguage].overstaySuffix})`;
                 statusClass = 'status-illegal';
             }
 
             const locale = currentLanguage === 'de' ? 'de-DE' : 'en-GB';
-            const allowedUntilText = allowedUntil ? allowedUntil.toLocaleDateString(locale) : '—';
+            const allowedUntilText = allowedUntil
+                ? allowedUntil.toLocaleDateString(locale)
+                : '—';
 
-            resultsList.innerHTML = `<div class="result-item"><span class="result-label">${translations[currentLanguage].usedDaysLabel}</span><span class="result-value">${usedDays} / 90 ${translations[currentLanguage].daysTextPlural}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span><span class="result-value">${Math.max(0, remainingDays)} ${translations[currentLanguage].daysTextPlural}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span><span class="result-value">${allowedUntilText}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].statusLabel}</span><span class="result-value ${statusClass}">${statusText}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].calculationDateLabel}</span><span class="result-value">${referenceDate.toLocaleDateString(locale)}</span></div>`;
+            resultsList.innerHTML = `
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].usedDaysLabel}</span>
+                    <span class="result-value">${usedDays} / 90 ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span>
+                    <span class="result-value">${Math.max(0, remainingDays)} ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span>
+                    <span class="result-value">${allowedUntilText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].statusLabel}</span>
+                    <span class="result-value ${statusClass}">${statusText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].calculationDateLabel}</span>
+                    <span class="result-value">${referenceDate.toLocaleDateString(locale)}</span>
+                </div>
+            `;
 
-            if (nextEntryDate) resultsList.innerHTML += `<div class="next-entry-date">${translations[currentLanguage].nextEntryText} <strong>${nextEntryDate.toLocaleDateString(locale)}</strong></div>`;
-            if (hasIncomplete) resultsList.innerHTML += `<div class="next-entry-date">⚠️ ${translations[currentLanguage].incompleteDataWarning}</div>`;
+            if (nextEntryDate) {
+                resultsList.innerHTML += `
+                    <div class="next-entry-date">
+                        ${translations[currentLanguage].nextEntryText} <strong>${nextEntryDate.toLocaleDateString(locale)}</strong>
+                    </div>
+                `;
+            }
+
+            if (hasIncomplete) {
+                resultsList.innerHTML += `
+                    <div class="next-entry-date">
+                        ⚠️ ${translations[currentLanguage].incompleteDataWarning}
+                    </div>
+                `;
+            }
 
             resultsDiv.classList.remove('hidden');
             resultsDiv.scrollIntoView({ behavior: 'smooth' });
@@ -2016,16 +2110,71 @@
         function displayVisaResults(usedDays, allowedDays, remainingDays, entriesUsed, allowedEntries, isCompliant, violations, visaStart, visaEnd, allowedUntil, controlDate, hasIncomplete) {
             const resultsDiv = document.getElementById('results');
             const resultsList = document.getElementById('resultsList');
-            const statusText = isCompliant ? translations[currentLanguage].statusVisaValid : translations[currentLanguage].statusVisaViolation;
+
+            // Standard Status Text
+            let statusText = isCompliant ? translations[currentLanguage].statusVisaValid : translations[currentLanguage].statusVisaViolation;
             const statusClass = isCompliant ? 'status-legal' : 'status-illegal';
+            
+            // NEU: Wenn Tage überschritten, hängen wir die Anzahl an den Status an
+            if (!isCompliant && usedDays > allowedDays) {
+                const overstay = usedDays - allowedDays;
+                statusText += ` (${overstay} ${translations[currentLanguage].daysTextPlural} ${translations[currentLanguage].overstaySuffix})`;
+            }
+
             const entriesText = allowedEntries === 'multi' ? 'MULTI' : allowedEntries;
+
             const locale = currentLanguage === 'de' ? 'de-DE' : 'en-GB';
-            const allowedUntilText = allowedUntil ? allowedUntil.toLocaleDateString(locale) : '—';
+            const allowedUntilText = allowedUntil
+                ? allowedUntil.toLocaleDateString(locale)
+                : '—';
 
-            resultsList.innerHTML = `<div class="result-item"><span class="result-label">${translations[currentLanguage].usedDaysVisaLabel}</span><span class="result-value">${usedDays} / ${allowedDays} ${translations[currentLanguage].daysTextPlural}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span><span class="result-value">${remainingDays} ${translations[currentLanguage].daysTextPlural}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span><span class="result-value">${allowedUntilText}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].entriesUsedLabel}</span><span class="result-value">${entriesUsed} / ${entriesText}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].statusLabel}</span><span class="result-value ${statusClass}">${statusText}</span></div><div class="result-item"><span class="result-label">🗓️ ${translations[currentLanguage].visaPeriodLabel}</span><span class="result-value">${visaStart.toLocaleDateString(locale)} - ${visaEnd.toLocaleDateString(locale)}</span></div><div class="result-item"><span class="result-label">${translations[currentLanguage].calculationDateLabel}</span><span class="result-value">${controlDate.toLocaleDateString(locale)}</span></div>`;
+            resultsList.innerHTML = `
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].usedDaysVisaLabel}</span>
+                    <span class="result-value">${usedDays} / ${allowedDays} ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].remainingDaysLabel}</span>
+                    <span class="result-value">${remainingDays} ${translations[currentLanguage].daysTextPlural}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].allowedStayUntilLabel}</span>
+                    <span class="result-value">${allowedUntilText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].entriesUsedLabel}</span>
+                    <span class="result-value">${entriesUsed} / ${entriesText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].statusLabel}</span>
+                    <span class="result-value ${statusClass}">${statusText}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">🗓️ ${translations[currentLanguage].visaPeriodLabel}</span>
+                    <span class="result-value">${visaStart.toLocaleDateString(locale)} - ${visaEnd.toLocaleDateString(locale)}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">${translations[currentLanguage].calculationDateLabel}</span>
+                    <span class="result-value">${controlDate.toLocaleDateString(locale)}</span>
+                </div>
+            `;
 
-            if (violations.length > 0) resultsList.innerHTML += `<div class="next-entry-date"><strong>⚠️ ${translations[currentLanguage].violationsTitle}:</strong><br>${violations.join('<br>')}</div>`;
-            if (hasIncomplete) resultsList.innerHTML += `<div class="next-entry-date">⚠️ ${translations[currentLanguage].incompleteDataWarning}</div>`;
+            if (violations.length > 0) {
+                resultsList.innerHTML += `
+                    <div class="next-entry-date">
+                        <strong>⚠️ ${translations[currentLanguage].violationsTitle}:</strong><br>
+                        ${violations.join('<br>')}
+                    </div>
+                `;
+            }
+
+            if (hasIncomplete) {
+                resultsList.innerHTML += `
+                    <div class="next-entry-date">
+                        ⚠️ ${translations[currentLanguage].incompleteDataWarning}
+                    </div>
+                `;
+            }
 
             resultsDiv.classList.remove('hidden');
             resultsDiv.scrollIntoView({ behavior: 'smooth' });
